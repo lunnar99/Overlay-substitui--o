@@ -96,29 +96,26 @@ export async function buscarERodarJogo() {
         const statusType = comp.status?.type?.name || '';
         const estadoJogo = comp.status?.type?.state || 'pre'; 
 
-        // == 1. TRATAMENTO DE STATUS DO PLACAR ==
-        let relogioExibicao = comp.status?.displayClock || "00:00";
-        
-        if (statusType === 'STATUS_HALFTIME') {
-            relogioExibicao = "INT"; // Mostra Intervalo na TV
-        }
+        // DETECÇÃO DO INTERVALO
+        const isHalftime = statusType === 'STATUS_HALFTIME' || comp.status?.type?.detail === 'HT';
 
         if (estadoJogo === 'in' || estadoJogo === 'pre') {
+            const relogioExibicao = comp.status?.displayClock || "00:00";
             const clockParts = relogioExibicao.split('+');
             const relogio = clockParts[0].replace(/'/g, ''); 
             const acrescimo = clockParts[1] ? clockParts[1].replace(/'/g, '') : null;
 
             await atualizarFirebase('tv/placar', {
-                status: 'in',
+                status: isHalftime ? 'halftime' : 'in',
                 homeAbbr: timeCasa.team.abbreviation,
                 awayAbbr: timeFora.team.abbreviation,
                 homeScore: parseInt(timeCasa.score) || 0,
                 awayScore: parseInt(timeFora.score) || 0,
-                clock: relogio,
-                added: acrescimo
+                clock: isHalftime ? 'INT' : relogio,
+                added: isHalftime ? null : acrescimo
             });
 
-            // == 2. EXTRAÇÃO DE CARTÕES E GOLS DIRETAMENTE DO ARRAY "DETAILS" ==
+            // LEITURA DOS DETALHES (CARTÕES E GOLS)
             const detalhesEventos = comp.details || [];
             
             detalhesEventos.forEach((det, idx) => {
@@ -146,7 +143,7 @@ export async function buscarERodarJogo() {
                 }
             });
 
-            return 10000; // Consulta a cada 10s
+            return 10000;
         } else {
             await atualizarFirebase('tv/placar', { status: 'off' });
             return 30000;
