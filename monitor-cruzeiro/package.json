@@ -1,13 +1,9 @@
 {
-  "name": "monitor-cruzeiro",
+  "name": "overlay-monitor",
   "version": "1.0.0",
   "type": "module",
   "main": "monitor.js",
   "scripts": {
     "start": "node monitor.js"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "description": ""
+  }
 }
