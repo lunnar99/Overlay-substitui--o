@@ -11,19 +11,20 @@ let ultimoAlvoId = '';
 
 async function atualizarFirebase(endpoint, payload) {
     try { 
+        console.log(`[FIREBASE] Enviando para ${endpoint}:`, JSON.stringify(payload));
         await fetch(`${FIREBASE_DB_URL}/${endpoint}.json`, { 
             method: 'PUT', 
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ ...payload, timestamp: Date.now() }) 
         }); 
     } catch (e) {
-        console.error("Erro ao atualizar Firebase:", e);
+        console.error("❌ Erro ao atualizar Firebase:", e);
     }
 }
 
 async function registrarLog(mensagem, tipo = 'info') {
     try {
-        console.log(`[LOG] ${mensagem}`);
+        console.log(`[LOG SISTEMA] ${mensagem}`);
         await fetch(`${FIREBASE_DB_URL}/tv/logs.json`, { 
             method: 'POST', 
             headers: { 'Content-Type': 'application/json' },
@@ -35,17 +36,24 @@ async function registrarLog(mensagem, tipo = 'info') {
 async function lerConfiguracaoAlvo() {
     try {
         const res = await fetch(`${FIREBASE_DB_URL}/tv/config.json`);
-        return await res.json() || { tipo: 'time', alvo: 'Cruzeiro' }; 
+        const data = await res.json();
+        console.log("[CONFIG ALVO] Lido do Firebase:", data);
+        return data || { tipo: 'time', alvo: 'Cruzeiro' }; 
     } catch (e) {
+        console.error("❌ Erro ao ler configuracao de alvo:", e);
         return { tipo: 'time', alvo: 'Cruzeiro' };
     }
 }
 
 export async function buscarERodarJogo() {
+    console.log("\n--------------------------------------------------");
+    console.log(`[LOOP] Iniciando verificação às ${new Date().toLocaleTimeString('pt-BR')}`);
+    
     try {
         const config = await lerConfiguracaoAlvo();
 
         if (config.alvo !== ultimoAlvoId) {
+            console.log(`[NOVO ALVO DETECTADO] Mudou de '${ultimoAlvoId}' para '${config.alvo}'`);
             ultimosEventos = { gol: [], cartao: [], sub: [] };
             ultimoAlvoId = config.alvo;
         }
@@ -57,6 +65,7 @@ export async function buscarERodarJogo() {
         const datesParam = `?dates=${yyyy}${mm}${dd}-${yyyy}1231`;
 
         let urlsParaBuscar = config.urlLiga ? [`${config.urlLiga}${datesParam}`] : LIGAS_DEFAULT.map(u => `${u}${datesParam}`);
+        console.log("[LIGAS CONSULTADAS]:", urlsParaBuscar);
 
         let todosEventos = [];
         for (const url of urlsParaBuscar) {
@@ -64,31 +73,42 @@ export async function buscarERodarJogo() {
                 const res = await fetch(url);
                 const data = await res.json();
                 if (data.events) {
-                    // Guarda o slug da liga junto com o evento (ex: bra.copa_do_brazil)
                     const leagueSlug = data.leagues?.[0]?.slug || 'bra.1';
                     data.events.forEach(e => e.leagueSlug = leagueSlug);
                     todosEventos.push(...data.events);
                 }
-            } catch (err) {}
+            } catch (err) {
+                console.error(`❌ Erro ao buscar dados da URL ${url}:`, err);
+            }
         }
 
+        console.log(`[TOTAL DE JOGOS ENCONTRADOS NAS LIGAS]: ${todosEventos.length}`);
+        
         let jogoEncontrado = null;
 
         for (const evento of todosEventos) {
-            if (config.tipo === 'id' && evento.id === config.alvo) {
+            const comp = evento.competitions[0];
+            const home = comp.competitors.find(c => c.homeAway === 'home').team.name;
+            const away = comp.competitors.find(c => c.homeAway === 'away').team.name;
+            
+            console.log(`   -> Comparando Jogo ID [${evento.id}] (${home} x ${away}) com Alvo [${config.alvo}]`);
+
+            if (config.tipo === 'id' && String(evento.id) === String(config.alvo)) {
                 jogoEncontrado = evento;
+                console.log(`   ✅ CORRESPONDÊNCIA ENCONTRADA POR ID! (${home} x ${away})`);
                 break;
             } else if (config.tipo === 'time') {
-                const competidores = evento.competitions[0].competitors;
-                const nomes = competidores.map(c => c.team.name.toLowerCase());
+                const nomes = [home.toLowerCase(), away.toLowerCase()];
                 if (nomes.some(n => n.includes(config.alvo.toLowerCase()))) {
                     jogoEncontrado = evento;
+                    console.log(`   ✅ CORRESPONDÊNCIA ENCONTRADA POR NOME DE TIME! (${home} x ${away})`);
                     break;
                 }
             }
         }
 
         if (!jogoEncontrado) {
+            console.log(`❌ NENHUM JOGO CORRESPONDENTE ENCONTRADO PARA O ALVO: '${config.alvo}'`);
             await atualizarFirebase('tv/placar', { status: 'off' });
             return 10000; 
         }
@@ -98,14 +118,15 @@ export async function buscarERodarJogo() {
         const timeFora = competidores.find(c => c.homeAway === 'away');
         const estadoJogo = jogoEncontrado.status.type.state; 
 
+        console.log(`[DADOS DO JOGO SELECIONADO]: ${timeCasa.team.name} (${timeCasa.team.abbreviation}) ${timeCasa.score} x ${timeFora.score} ${timeFora.team.name} (${timeFora.team.abbreviation}) | Estado: ${estadoJogo}`);
+
         if (estadoJogo === 'in' || estadoJogo === 'pre') {
             const clockText = jogoEncontrado.status.displayClock || "00:00";
             const clockParts = clockText.split('+');
             const relogio = clockParts[0].replace(/'/g, ''); 
             const acrescimo = clockParts[1] ? clockParts[1].replace(/'/g, '') : null;
 
-            // 1. Atualização do Placar
-            await atualizarFirebase('tv/placar', {
+            const payloadPlacar = {
                 status: 'in',
                 homeAbbr: timeCasa.team.abbreviation,
                 awayAbbr: timeFora.team.abbreviation,
@@ -113,11 +134,15 @@ export async function buscarERodarJogo() {
                 awayScore: parseInt(timeFora.score) || 0,
                 clock: relogio,
                 added: acrescimo
-            });
+            };
 
-            // 2. Busca de Eventos (Gols / Cartões) com o Slug correto da liga
+            console.log("🚀 ATUALIZANDO PLACAR NO FIREBASE COM DADOS AO VIVO:", payloadPlacar);
+            await atualizarFirebase('tv/placar', payloadPlacar);
+
+            // Resumo de eventos (Gols e Cartões)
             const leagueSlug = jogoEncontrado.leagueSlug || 'bra.1';
             const summaryApiUrl = `https://site.api.espn.com/apis/site/v2/sports/soccer/${leagueSlug}/summary?event=${jogoEncontrado.id}`;
+            console.log(`[BUSCANDO EVENTOS DO JOGO]: ${summaryApiUrl}`);
             
             try {
                 const summaryRes = await fetch(summaryApiUrl);
@@ -132,29 +157,32 @@ export async function buscarERodarJogo() {
                     const siglaTime = (teamID === timeCasa.team.id) ? timeCasa.team.abbreviation : timeFora.team.abbreviation;
                     
                     if (evento.type?.id === '1') { 
+                        console.log(`⚽ EVENTO DETECTADO: GOL DE ${jogador}`);
                         atualizarFirebase('tv/gol', { teamAbbr: siglaTime, jogador, numero });
                         registrarLog(`⚽ GOL! ${jogador} (${siglaTime})`, 'success');
                         ultimosEventos.gol.push(evento.id);
                     }
                     if (evento.type?.text?.toLowerCase().includes('card')) { 
                         const tipo = evento.type.text.toLowerCase().includes('red') ? 'vermelho' : 'amarelo';
+                        console.log(`🟨 EVENTO DETECTADO: CARTÃO ${tipo.toUpperCase()} PARA ${jogador}`);
                         atualizarFirebase('tv/cartao', { teamAbbr: siglaTime, jogador, numero, tipo });
                         registrarLog(`🟨 Cartão ${tipo}: ${jogador} (${siglaTime})`, 'warning');
                         ultimosEventos.cartao.push(evento.id);
                     }
                 });
             } catch (err) {
-                console.error("Erro ao carregar resumo dos eventos do jogo:", err);
+                console.error("❌ Erro ao buscar resumo dos eventos:", err);
             }
 
-            return 10000; // Checa a cada 10s
+            return 10000; 
         } else {
+            console.log(`[JOGO ENCERRADO OU INATIVO]: Estado = ${estadoJogo}`);
             await atualizarFirebase('tv/placar', { status: 'off' });
             return 30000;
         }
 
     } catch (e) {
-        console.error("Erro geral no loop principal:", e);
+        console.error("❌ ERRO GERAL NO PROCESSAMENTO:", e);
         await atualizarFirebase('tv/placar', { status: 'erro' });
         return 30000;
     }
