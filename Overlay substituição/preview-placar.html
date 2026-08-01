@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body { margin: 0; overflow: hidden; font-family: 'Arial Black', Impact, sans-serif; display: flex; align-items: flex-start; padding: 20px; }
+        
+        .scoreboard-wrapper {
+            display: flex; align-items: center; background: rgba(10, 10, 20, 0.95);
+            border: 2px solid rgba(255, 255, 255, 0.2); border-radius: 12px;
+            padding: 8px; box-shadow: 0 10px 30px rgba(0,0,0,0.6); color: white; gap: 15px;
+        }
+
+        /* Container do Jogo (Siglas e Gols) */
+        .match-info {
+            display: flex; align-items: center; gap: 10px; font-size: 2rem;
+            background: #111; padding: 5px 20px; border-radius: 8px;
+        }
+        .team-abbr { font-weight: 900; letter-spacing: 2px; text-transform: uppercase; }
+        .score { color: #f59e0b; font-weight: 900; }
+        .divider { color: #555; font-size: 1.5rem; }
+        
+        .team-cruzeiro { color: #3b82f6; } /* Destaque azul se for Cruzeiro */
+
+        /* Relógio */
+        .clock-info { display: flex; align-items: center; font-size: 2.2rem; font-weight: 900; letter-spacing: 1px; min-width: 110px; justify-content: center; }
+
+        /* Acréscimos (+5) */
+        .added-time {
+            background: #eab308; color: #000; font-size: 1.8rem; font-weight: 900;
+            padding: 2px 12px; border-radius: 6px; box-shadow: 0 0 15px rgba(234, 179, 8, 0.4);
+            display: none; transform: scale(0.8); transition: 0.3s;
+        }
+        .added-time.show { display: block; transform: scale(1); }
+
+        /* Status (OFF / ERRO) */
+        .status-msg {
+            font-size: 2rem; font-weight: 900; color: #888; letter-spacing: 3px; padding: 5px 30px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="scoreboard-wrapper" id="board">
+        <!-- Modo Padrão: OFF -->
+        <div class="status-msg" id="status-display">OFF</div>
+
+        <!-- Modo Jogo -->
+        <div class="match-info" id="match-display" style="display: none;">
+            <span class="team-abbr" id="home-team">CASA</span>
+            <span class="score" id="home-score">0</span>
+            <span class="divider">x</span>
+            <span class="score" id="away-score">0</span>
+            <span class="team-abbr" id="away-team">FORA</span>
+        </div>
+
+        <div class="clock-info" id="clock-display" style="display: none;">
+            <span id="timer">00:00</span>
+        </div>
+        
+        <div class="added-time" id="added-time">+0</div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+        import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+        const config = { databaseURL: "https://termosm-6fed5-default-rtdb.firebaseio.com" }; 
+        const db = getDatabase(initializeApp(config));
+        
+        const statusDisplay = document.getElementById('status-display');
+        const matchDisplay = document.getElementById('match-display');
+        const clockDisplay = document.getElementById('clock-display');
+        const homeTeam = document.getElementById('home-team');
+        const awayTeam = document.getElementById('away-team');
+        const homeScore = document.getElementById('home-score');
+        const awayScore = document.getElementById('away-score');
+        const timer = document.getElementById('timer');
+        const addedBox = document.getElementById('added-time');
+
+        let relogioInterval = null;
+
+        function colorirCruzeiro(el, sigla) {
+            if(sigla === 'CRU') el.classList.add('team-cruzeiro');
+            else el.classList.remove('team-cruzeiro');
+        }
+
+        function setModo(modo) {
+            if(modo === 'in' || modo === 'start') {
+                statusDisplay.style.display = 'none';
+                matchDisplay.style.display = 'flex';
+                clockDisplay.style.display = 'flex';
+            } else {
+                statusDisplay.style.display = 'block';
+                matchDisplay.style.display = 'none';
+                clockDisplay.style.display = 'none';
+                addedBox.classList.remove('show');
+                statusDisplay.innerText = modo.toUpperCase();
+                statusDisplay.style.color = modo === 'erro' ? '#ef4444' : '#888';
+                clearInterval(relogioInterval);
+            }
+        }
+
+        onValue(ref(db, 'tv/placar'), (snap) => {
+            const data = snap.val();
+            if (!data) return;
+
+            if (data.status === 'off' || data.acao === 'reset') {
+                setModo('off');
+            } else if (data.status === 'erro') {
+                setModo('erro');
+            } else if (data.status === 'in' || data.acao === 'start') {
+                setModo('in');
+                
+                homeTeam.innerText = data.homeAbbr || "CASA";
+                awayTeam.innerText = data.awayAbbr || "FORA";
+                colorirCruzeiro(homeTeam, data.homeAbbr);
+                colorirCruzeiro(awayTeam, data.awayAbbr);
+                
+                homeScore.innerText = data.homeScore ?? 0;
+                awayScore.innerText = data.awayScore ?? 0;
+                
+                // Se o robô enviar o relógio textualmente (Ex: 45:12) atualizamos
+                if(data.clock) timer.innerText = data.clock;
+
+                if (data.added || data.acao === 'acrescimo') {
+                    addedBox.innerText = `+${data.added || 5}`;
+                    addedBox.classList.add('show');
+                } else {
+                    addedBox.classList.remove('show');
+                }
+            }
+        });
+    </script>
+</body>
+</html>

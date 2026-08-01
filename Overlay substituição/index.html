@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Broadcast | Multi-Ligas</title>
+    <style>
+        :root {
+            --bg-color: #f3f4f6;
+            --primary: #1e3a8a;
+            --secondary: #3b82f6;
+            --success: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --dark: #111827;
+            --white: #ffffff;
+            --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --glass-bg: rgba(255, 255, 255, 0.85);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', system-ui, sans-serif; }
+
+        body { background-color: var(--bg-color); color: var(--dark); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+        /* Header */
+        header { background: var(--primary); color: var(--white); padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; box-shadow: var(--card-shadow); z-index: 10; }
+        .header-title { font-size: 1.5rem; font-weight: 800; letter-spacing: 1px; display: flex; align-items: center; gap: 15px;}
+        .current-target { font-size: 0.9rem; background: rgba(0,0,0,0.3); padding: 5px 15px; border-radius: 50px; font-weight: normal; }
+        
+        .header-actions { display: flex; align-items: center; gap: 15px; }
+        .btn-change-game { background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.4); color: white; padding: 8px 15px; border-radius: 50px; cursor: pointer; font-weight: 600; transition: 0.2s; }
+        .btn-change-game:hover { background: white; color: var(--primary); }
+
+        .status-badge { background: rgba(255,255,255,0.2); padding: 5px 15px; border-radius: 50px; font-size: 0.9rem; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+        .status-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--success); box-shadow: 0 0 10px var(--success); }
+
+        /* Main Layout */
+        .dashboard-container { display: flex; flex: 1; padding: 20px; gap: 20px; overflow: hidden; background: url('BG.png') center/cover no-repeat; }
+
+        /* Coluna Esquerda */
+        .panel-left { flex: 1; max-width: 400px; display: flex; flex-direction: column; gap: 20px; overflow-y: auto; padding-right: 10px; }
+        
+        .card { background: var(--glass-bg); backdrop-filter: blur(10px); border-radius: 12px; padding: 20px; box-shadow: var(--card-shadow); border: 1px solid rgba(255,255,255,0.5); }
+        .card-title { font-size: 1.1rem; font-weight: 700; color: var(--primary); margin-bottom: 15px; border-bottom: 2px solid rgba(0,0,0,0.1); padding-bottom: 10px; }
+
+        .btn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .btn-full { grid-column: span 2; }
+        
+        .btn { padding: 12px; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; transition: 0.2s; color: var(--white); text-transform: uppercase; font-size: 0.9rem; }
+        .btn:hover { filter: brightness(1.1); transform: translateY(-1px); }
+        .btn-blue { background: var(--secondary); }
+        .btn-green { background: var(--success); }
+        .btn-red { background: var(--danger); }
+        .btn-yellow { background: var(--warning); color: var(--dark); }
+
+        /* Coluna Direita */
+        .panel-right { flex: 2; display: flex; flex-direction: column; gap: 20px; overflow: hidden; }
+
+        .visual-feedback { background: rgba(17, 24, 39, 0.9); backdrop-filter: blur(10px); border-radius: 12px; padding: 20px; color: var(--white); display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 180px; position: relative; box-shadow: inset 0 0 20px rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.2);}
+        .visual-title { position: absolute; top: 15px; left: 15px; font-size: 0.8rem; color: #aaa; font-weight: bold; text-transform: uppercase; }
+        
+        .mirror-placar { display: flex; align-items: center; gap: 20px; font-size: 2.5rem; font-weight: 900; font-family: 'Arial Black', sans-serif; }
+        .mirror-team { background: #333; padding: 10px 20px; border-radius: 8px; }
+        .mirror-score { color: var(--warning); }
+        .mirror-time { font-size: 1.5rem; background: #222; padding: 5px 15px; border-radius: 5px; color: #aaa; }
+
+        .logs-card { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+        .logs-container { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding: 5px; }
+        .logs-container::-webkit-scrollbar { width: 6px; }
+        .logs-container::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        
+        .log-item { background: rgba(255,255,255,0.9); border-left: 4px solid #ccc; padding: 12px; border-radius: 6px; font-size: 0.9rem; font-weight: 600; animation: slideIn 0.3s ease-out; box-shadow: 0 2px 4px rgba(0,0,0,0.05);}
+        .log-item.info { border-left-color: var(--secondary); }
+        .log-item.success { border-left-color: var(--success); }
+        .log-item.warning { border-left-color: var(--warning); }
+        .log-time { font-size: 0.75rem; color: #6b7280; display: block; margin-bottom: 4px; }
+
+        /* Modal / Lobby com Filtro */
+        .lobby-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(17, 24, 39, 0.95); display: flex; justify-content: center; align-items: center; z-index: 200; backdrop-filter: blur(10px); flex-direction: column; padding: 20px;}
+        .lobby-overlay.hidden { display: none; }
+        
+        .lobby-card { background: white; width: 100%; max-width: 650px; border-radius: 16px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); }
+        .lobby-header { background: var(--primary); color: white; padding: 20px; text-align: center; }
+        .lobby-header h2 { margin: 0; font-size: 1.4rem; font-weight: 900; letter-spacing: 1px; }
+        
+        .lobby-filter-bar { background: #f1f5f9; padding: 12px 20px; display: flex; gap: 10px; border-bottom: 1px solid #e2e8f0; }
+        .filter-input { flex: 1; padding: 10px 15px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 0.95rem; outline: none; }
+        .filter-input:focus { border-color: var(--secondary); }
+        .btn-filter-cru { background: var(--secondary); color: white; border: none; padding: 0 15px; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 0.85rem; transition: 0.2s; white-space: nowrap; }
+        .btn-filter-cru.active { background: var(--primary); box-shadow: inset 0 2px 4px rgba(0,0,0,0.3); }
+
+        .lobby-body { padding: 15px 20px; max-height: 380px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; background: #f8fafc;}
+        .lobby-body::-webkit-scrollbar { width: 8px; }
+        .lobby-body::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        
+        .game-btn { background: white; border: 1px solid #e2e8f0; padding: 12px 15px; border-radius: 10px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; transition: 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
+        .game-btn:hover { border-color: var(--secondary); box-shadow: 0 4px 6px rgba(59, 130, 246, 0.1); transform: translateY(-2px); }
+        
+        .game-teams { font-size: 1rem; font-weight: 800; color: var(--dark); display: flex; align-items: center; gap: 8px; }
+        .game-league-tag { font-size: 0.7rem; background: #e0e7ff; color: #3730a3; padding: 2px 8px; border-radius: 4px; font-weight: bold; text-transform: uppercase; margin-bottom: 4px; display: inline-block; }
+        .game-info-col { display: flex; flex-direction: column; gap: 2px; align-items: flex-end; }
+        .game-date { font-size: 0.75rem; color: #64748b; font-weight: 700; text-transform: uppercase; }
+        .game-status { font-size: 0.8rem; padding: 3px 8px; border-radius: 50px; font-weight: 700; }
+        
+        .status-pre { background: #e2e8f0; color: #475569; }
+        .status-in { background: #dcfce7; color: #166534; animation: pulse 2s infinite; }
+        
+        .lobby-footer { padding: 15px 20px; background: white; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end; }
+        
+        /* Modais de Teste */
+        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); display: none; justify-content: center; align-items: center; z-index: 100; backdrop-filter: blur(3px); }
+        .modal-overlay.active { display: flex; }
+        .modal-content { background: var(--white); width: 100%; max-width: 400px; border-radius: 12px; padding: 25px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); }
+        .modal-header { font-size: 1.2rem; font-weight: 800; color: var(--primary); margin-bottom: 15px; }
+        .modal-input { width: 100%; padding: 12px; border: 1px solid #d1d5db; border-radius: 8px; margin-bottom: 10px; font-size: 1rem; outline: none; }
+        .modal-actions { display: flex; gap: 10px; margin-top: 15px; }
+
+        @keyframes slideIn { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
+        
+        .toast { position: fixed; bottom: -60px; left: 50%; transform: translateX(-50%); background: var(--dark); color: white; padding: 12px 25px; border-radius: 50px; font-weight: bold; transition: bottom 0.3s; z-index: 1000; box-shadow: 0 10px 20px rgba(0,0,0,0.3);}
+        .toast.show { bottom: 30px; }
+    </style>
+</head>
+<body>
+
+    <!-- LOBBY DE SELEÇÃO DE JOGOS MULTI-LIGAS -->
+    <div class="lobby-overlay" id="lobby-overlay">
+        <div class="lobby-card">
+            <div class="lobby-header">
+                <h2>SELEÇÃO DE TRANSMISSÃO</h2>
+            </div>
+            
+            <!-- Barra de Filtros -->
+            <div class="lobby-filter-bar">
+                <input type="text" class="filter-input" id="filter-search" placeholder="Buscar time (Ex: Cruzeiro, Flamengo)...">
+                <button class="btn-filter-cru" id="btn-filter-cruzeiro">Apenas Cruzeiro</button>
+            </div>
+
+            <div class="lobby-body" id="games-list">
+                <div style="text-align:center; padding: 20px; color: #888; font-weight:bold;">Buscando jogos (Série A + Copa do Brasil)...</div>
+            </div>
+            
+            <div class="lobby-footer">
+                <button class="btn" style="background: #e2e8f0; color: #475569;" onclick="fecharLobby()">Cancelar / Fechar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- DASHBOARD PRINCIPAL -->
+    <header>
+        <div class="header-title">
+            OVERLAY BROADCAST UI
+            <span class="current-target" id="header-target-label">Carregando alvo...</span>
+        </div>
+        <div class="header-actions">
+            <button class="btn-change-game" onclick="abrirLobby()">🔄 Trocar Jogo</button>
+            <div class="status-badge">
+                <div class="status-dot"></div> Robô Ativo
+            </div>
+        </div>
+    </header>
+
+    <div class="dashboard-container">
+        <!-- CONTROLES -->
+        <div class="panel-left">
+            <div class="card">
+                <div class="card-title">⚽ Forçar Gráficos (Testes)</div>
+                <div class="btn-grid">
+                    <button class="btn btn-blue btn-full" onclick="abrirModalTeste('gol')">Simular Gol</button>
+                    <button class="btn btn-yellow" onclick="abrirModalTeste('cartao')">Cartão</button>
+                    <button class="btn btn-green" onclick="abrirModalTeste('substituicao')">Substituição</button>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">⏱ Controle do Placar</div>
+                <div class="btn-grid">
+                    <button class="btn btn-blue" onclick="enviarComandoPlacar('start')">Iniciar Tempo</button>
+                    <button class="btn btn-red" onclick="enviarComandoPlacar('reset')">Zerar Placar</button>
+                    <button class="btn btn-green btn-full" onclick="abrirModalTeste('acrescimo')">Inserir Acréscimo</button>
+                    <button class="btn btn-yellow btn-full" onclick="enviarComandoPlacar('off')">Forçar Status "OFF"</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- FEEDBACK E LOGS -->
+        <div class="panel-right">
+            <div class="visual-feedback">
+                <div class="visual-title">🔴 Feedback Visual (TV)</div>
+                <div class="mirror-placar" id="mirror-placar">
+                    <span class="mirror-team" id="mirror-home">OFF</span>
+                    <span class="mirror-score" id="mirror-score-home">-</span>
+                    <span>x</span>
+                    <span class="mirror-score" id="mirror-score-away">-</span>
+                    <span class="mirror-team" id="mirror-away">OFF</span>
+                </div>
+                <div class="mirror-time" style="margin-top: 15px;" id="mirror-time">00:00</div>
+            </div>
+
+            <div class="card logs-card">
+                <div class="card-title">Histórico do Sistema</div>
+                <div class="logs-container" id="logs-area"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modais Dinâmicos -->
+    <div class="modal-overlay" id="modal">
+        <div class="modal-content">
+            <div class="modal-header" id="modal-title">Título</div>
+            <div id="modal-body"></div>
+            <div class="modal-actions">
+                <button class="btn" style="background: #9ca3af; flex: 1;" onclick="fecharModalTeste()">Cancelar</button>
+                <button class="btn btn-blue" style="flex: 1;" id="modal-confirm">Enviar</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast">Ação executada com sucesso!</div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+        import { getDatabase, ref, set, onValue, update, query, limitToLast } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+        const config = {
+            apiKey: "AIzaSyBH7VzRejR_jOg-ogO8mLw162PN5QKODeI",
+            authDomain: "termosm-6fed5.firebaseapp.com",
+            projectId: "termosm-6fed5",
+            databaseURL: "https://termosm-6fed5-default-rtdb.firebaseio.com",
+            storageBucket: "termosm-6fed5.firebasestorage.app",
+            messagingSenderId: "161850041087",
+            appId: "1:161850041087:web:2dc4f19760f44475fde2ca"
+        };
+        const app = initializeApp(config);
+        const db = getDatabase(app);
+
+        // ENDPOINTS DAS LIGAS
+        const LIGAS = [
+            { nome: 'Série A', url: 'https://site.api.espn.com/apis/site/v2/sports/soccer/bra.1/scoreboard' },
+            { nome: 'Copa do Brasil', url: 'https://site.api.espn.com/apis/site/v2/sports/soccer/bra.copa_do_brazil/scoreboard' }
+        ];
+
+        let jogosCarregados = [];
+        let apenasCruzeiroFiltro = false;
+
+        const lobbyOverlay = document.getElementById('lobby-overlay');
+        const gamesList = document.getElementById('games-list');
+        const headerTargetLabel = document.getElementById('header-target-label');
+        const filterSearch = document.getElementById('filter-search');
+        const btnFilterCruzeiro = document.getElementById('btn-filter-cruzeiro');
+
+        // BUSCA MULTI-LIGAS NA ESPN
+        window.abrirLobby = async function() {
+            lobbyOverlay.classList.remove('hidden');
+            gamesList.innerHTML = '<div style="text-align:center; padding: 20px; color: #888; font-weight:bold;">Buscando jogos (Série A + Copa do Brasil)...</div>';
+            jogosCarregados = [];
+
+            try {
+                const date = new Date();
+                const yyyy = date.getFullYear();
+                const mm = String(date.getMonth() + 1).padStart(2, '0');
+                const dd = String(date.getDate()).padStart(2, '0');
+                const datesParam = `?dates=${yyyy}${mm}${dd}-${yyyy}1231`;
+
+                // Promessas em paralelo para todas as ligas
+                const requisicoes = LIGAS.map(liga => 
+                    fetch(`${liga.url}${datesParam}`)
+                        .then(r => r.json())
+                        .then(d => (d.events || []).map(e => ({ ...e, nomeLiga: liga.nome, urlLiga: liga.url })))
+                        .catch(() => [])
+                );
+
+                const resultados = await Promise.all(requisicoes);
+                jogosCarregados = resultados.flat();
+
+                renderizarJogos();
+
+            } catch (error) {
+                gamesList.innerHTML = '<div style="text-align:center; padding: 20px; color: var(--danger);">Erro ao carregar lista de jogos.</div>';
+            }
+        }
+
+        function renderizarJogos() {
+            gamesList.innerHTML = '';
+            let contadorVisiveis = 0;
+            const termoBusca = filterSearch.value.toLowerCase().trim();
+
+            jogosCarregados.forEach(evento => {
+                const estado = evento.status.type.state; 
+                
+                // ESCONDE JOGOS ENCERRADOS
+                if (estado === 'post') return;
+
+                const comp = evento.competitions[0];
+                const timeCasa = comp.competitors.find(c => c.homeAway === 'home').team.name;
+                const timeFora = comp.competitors.find(c => c.homeAway === 'away').team.name;
+                const matchName = `${timeCasa} x ${timeFora}`.toLowerCase();
+
+                // FILTRAGEM DINÂMICA
+                if (apenasCruzeiroFiltro && !matchName.includes('cruzeiro')) return;
+                if (termoBusca && !matchName.includes(termoBusca)) return;
+
+                contadorVisiveis++;
+
+                const dataDoJogo = new Date(evento.date);
+                const dataFormatada = dataDoJogo.toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit'});
+                
+                let statusLabel = '';
+                let statusClass = '';
+                if(estado === 'pre') { 
+                    statusLabel = dataDoJogo.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'}); 
+                    statusClass = 'status-pre'; 
+                } else if (estado === 'in') { 
+                    statusLabel = evento.status.displayClock || "AO VIVO"; 
+                    statusClass = 'status-in'; 
+                }
+
+                const btn = document.createElement('div');
+                btn.className = 'game-btn';
+                btn.innerHTML = `
+                    <div>
+                        <span class="game-league-tag">${evento.nomeLiga}</span>
+                        <div class="game-teams">${timeCasa} <span style="color:#cbd5e1; font-weight:normal;">x</span> ${timeFora}</div>
+                    </div>
+                    <div class="game-info-col">
+                        <span class="game-date">${dataFormatada}</span>
+                        <span class="game-status ${statusClass}">${statusLabel}</span>
+                    </div>
+                `;
+                
+                btn.onclick = () => selecionarAlvo(evento.id, `${timeCasa} x ${timeFora}`, evento.urlLiga);
+                gamesList.appendChild(btn);
+            });
+
+            if (contadorVisiveis === 0) {
+                gamesList.innerHTML = '<div style="text-align:center; padding: 20px; color: #888;">Nenhum jogo localizado com esses filtros.</div>';
+            }
+        }
+
+        // EVENTOS DE FILTRO
+        filterSearch.addEventListener('input', renderizarJogos);
+        btnFilterCruzeiro.addEventListener('click', () => {
+            apenasCruzeiroFiltro = !apenasCruzeiroFiltro;
+            btnFilterCruzeiro.classList.toggle('active', apenasCruzeiroFiltro);
+            renderizarJogos();
+        });
+
+        window.fecharLobby = () => lobbyOverlay.classList.add('hidden');
+
+        window.selecionarAlvo = async function(idJogo, label, urlLiga) {
+            await set(ref(db, 'tv/config'), { 
+                tipo: 'id', alvo: idJogo, label: label, urlLiga: urlLiga, timestamp: Date.now() 
+            });
+            mostrarToast(`Configurado para: ${label}`);
+            fecharLobby();
+        }
+
+        onValue(ref(db, 'tv/config'), (snap) => {
+            const config = snap.val();
+            if(!config) {
+                headerTargetLabel.innerText = "Nenhum alvo definido";
+                abrirLobby(); 
+            } else {
+                headerTargetLabel.innerText = config.label || "Alvo Ativo";
+                lobbyOverlay.classList.add('hidden');
+            }
+        });
+
+        // FEEDBACK E LOGS
+        onValue(ref(db, 'tv/placar'), (snap) => {
+            const data = snap.val();
+            if(!data) return;
+
+            const home = document.getElementById('mirror-home');
+            const away = document.getElementById('mirror-away');
+            const scoreHome = document.getElementById('mirror-score-home');
+            const scoreAway = document.getElementById('mirror-score-away');
+            const time = document.getElementById('mirror-time');
+
+            if(data.status === 'off' || data.acao === 'reset') {
+                home.innerText = "OFF"; away.innerText = "OFF";
+                scoreHome.innerText = "-"; scoreAway.innerText = "-";
+                time.innerText = "00:00";
+            } else if (data.status === 'erro') {
+                home.innerText = "ERRO"; away.innerText = "ERRO";
+                time.innerText = "API ERROR";
+            } else {
+                home.innerText = data.homeAbbr || "CASA";
+                away.innerText = data.awayAbbr || "FORA";
+                scoreHome.innerText = data.homeScore ?? 0;
+                scoreAway.innerText = data.awayScore ?? 0;
+                time.innerText = data.clock || "00:00";
+                if(data.added) time.innerText += ` (+${data.added})`;
+            }
+        });
+
+        const logsArea = document.getElementById('logs-area');
+        onValue(query(ref(db, 'tv/logs'), limitToLast(20)), (snapshot) => {
+            logsArea.innerHTML = '';
+            snapshot.forEach((child) => {
+                const data = child.val();
+                const timeStr = new Date(data.timestamp).toLocaleTimeString('pt-BR');
+                const div = document.createElement('div');
+                div.className = `log-item ${data.tipo}`;
+                div.innerHTML = `<span class="log-time">${timeStr}</span>${data.mensagem}`;
+                logsArea.insertBefore(div, logsArea.firstChild);
+            });
+        });
+
+        // MODAIS DE TESTE
+        const modal = document.getElementById('modal');
+        const modalBody = document.getElementById('modal-body');
+        const btnConfirm = document.getElementById('modal-confirm');
+
+        window.abrirModalTeste = function(tipo) {
+            document.getElementById('modal-title').innerText = `Simular ${tipo.toUpperCase()}`;
+            let html = `<input type="text" id="teste-time" class="modal-input" placeholder="Sigla do Time (Ex: CRU, FLA)">`;
+            
+            if (tipo === 'gol' || tipo === 'cartao') {
+                html += `<input type="text" id="teste-jogador" class="modal-input" placeholder="Nome do Jogador">`;
+                html += `<input type="text" id="teste-numero" class="modal-input" placeholder="Número da Camisa (Opcional)">`;
+                if(tipo === 'cartao') html += `<select id="teste-cor" class="modal-input"><option value="amarelo">Amarelo</option><option value="vermelho">Vermelho</option></select>`;
+            } else if (tipo === 'substituicao') {
+                html += `<input type="text" id="teste-sai" class="modal-input" placeholder="SAI: Nome do Jogador">
+                         <input type="text" id="teste-entra" class="modal-input" placeholder="ENTRA: Nome do Jogador">`;
+            } else if (tipo === 'acrescimo') {
+                html = `<input type="number" id="teste-min" class="modal-input" placeholder="Minutos (Ex: 5)">`;
+            }
+
+            modalBody.innerHTML = html;
+            modal.classList.add('active');
+
+            btnConfirm.onclick = async () => {
+                fecharModalTeste();
+                if(tipo === 'acrescimo') {
+                    await update(ref(db, 'tv/placar'), { acao: 'acrescimo', added: document.getElementById('teste-min').value, timestamp: Date.now() });
+                } else if (tipo === 'substituicao') {
+                    let payload = {
+                        team: document.getElementById('teste-time').value.toUpperCase(),
+                        out: { nome: document.getElementById('teste-sai').value, num: "X" },
+                        in: { nome: document.getElementById('teste-entra').value, num: "Y" },
+                        timestamp: Date.now(), hide: false
+                    };
+                    await set(ref(db, 'substituicao'), payload);
+                } else {
+                    let payload = {
+                        teamAbbr: document.getElementById('teste-time').value.toUpperCase(),
+                        jogador: document.getElementById('teste-jogador').value,
+                        numero: document.getElementById('teste-numero').value,
+                        timestamp: Date.now()
+                    };
+                    if(tipo === 'cartao') payload.tipo = document.getElementById('teste-cor').value;
+                    await set(ref(db, `tv/${tipo}`), payload);
+                }
+                mostrarToast(`Animação enviada para o OBS!`);
+            };
+        };
+
+        window.fecharModalTeste = () => modal.classList.remove('active');
+
+        window.enviarComandoPlacar = async (acao) => {
+            let payload = { acao: acao, status: acao, timestamp: Date.now() };
+            if(acao === 'start') {
+                payload = { ...payload, status: 'in', homeAbbr: 'CRU', awayAbbr: 'ADV', homeScore: 0, awayScore: 0, clock: "00:00" };
+            }
+            await set(ref(db, 'tv/placar'), payload);
+            mostrarToast(`Placar atualizado para: ${acao.toUpperCase()}`);
+        };
+
+        function mostrarToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.innerText = msg;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+    </script>
+</body>
+</html>
