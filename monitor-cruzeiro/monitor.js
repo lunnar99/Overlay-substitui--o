@@ -6,9 +6,7 @@ const LIGAS_DEFAULT = [
 ];
 
 const FIREBASE_DB_URL = 'https://termosm-6fed5-default-rtdb.firebaseio.com';
-
-// Conjunto (Set) de IDs processados para evitar duplicações
-const eventosProcessados = new Set();
+const eventosEnviados = new Set(); // Antiduplicação garantida
 let ultimoAlvoId = '';
 
 async function atualizarFirebase(endpoint, payload) {
@@ -18,9 +16,7 @@ async function atualizarFirebase(endpoint, payload) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ ...payload, timestamp: Date.now() }) 
         }); 
-    } catch (e) {
-        console.error("Erro Firebase:", e);
-    }
+    } catch (e) {}
 }
 
 async function registrarLog(mensagem, tipo = 'info') {
@@ -47,9 +43,8 @@ export async function buscarERodarJogo() {
     try {
         const config = await lerConfiguracaoAlvo();
 
-        // Se trocou o jogo alvo, limpa os eventos antigos da memória
         if (config.alvo !== ultimoAlvoId) {
-            eventosProcessados.clear();
+            eventosEnviados.clear();
             ultimoAlvoId = config.alvo;
         }
 
@@ -98,15 +93,14 @@ export async function buscarERodarJogo() {
         
         const statusType = comp.status?.type?.name || '';
         const estadoJogo = comp.status?.type?.state || 'pre'; 
+        const periodoAtual = comp.status?.period || 1;
 
-        // DETECÇÃO DO INTERVALO
         const isHalftime = statusType === 'STATUS_HALFTIME' || comp.status?.type?.detail === 'HT';
 
         if (estadoJogo === 'in' || estadoJogo === 'pre') {
             const relogioExibicao = comp.status?.displayClock || "00:00";
             const clockParts = relogioExibicao.split('+');
             const relogio = clockParts[0].replace(/'/g, ''); 
-            const acrescimo = clockParts[1] ? clockParts[1].replace(/'/g, '') : null;
 
             await atualizarFirebase('tv/placar', {
                 status: isHalftime ? 'halftime' : 'in',
@@ -115,10 +109,10 @@ export async function buscarERodarJogo() {
                 homeScore: parseInt(timeCasa.score) || 0,
                 awayScore: parseInt(timeFora.score) || 0,
                 clock: isHalftime ? 'INT' : relogio,
-                added: isHalftime ? null : acrescimo
+                period: periodoAtual
             });
 
-            // PROCESSAMENTO ÚNICO DE EVENTOS (CARTÕES/GOLS DO SUMMARY)
+            // VARREDURA DE SUBSTITUIÇÕES, CARTÕES E GOLS NO SUMMARY
             const summaryApiUrl = `https://site.api.espn.com/apis/site/v2/sports/soccer/bra.1/summary?event=${jogoEncontrado.id}`;
             try {
                 const summaryRes = await fetch(summaryApiUrl);
@@ -126,26 +120,45 @@ export async function buscarERodarJogo() {
 
                 (summary.keyEvents || []).forEach(evento => {
                     const idUnico = `${jogoEncontrado.id}_${evento.id}`;
-                    
-                    // Se já foi enviado para o OBS, ignora
-                    if (eventosProcessados.has(idUnico)) return;
+                    if (eventosEnviados.has(idUnico)) return;
 
-                    const jogador = evento.participants?.[0]?.athlete?.displayName || 'Jogador';
-                    const numero = evento.participants?.[0]?.athlete?.jersey || '--';
                     const teamID = evento.team?.id;
                     const siglaTime = (teamID === timeCasa.team.id) ? timeCasa.team.abbreviation : timeFora.team.abbreviation;
+                    const tipoTexto = evento.type?.text?.toLowerCase() || '';
 
-                    if (evento.type?.id === '1') { 
+                    // 1. CAPTURA DE SUBSTITUIÇÃO
+                    if (tipoTexto.includes('substitution') || evento.type?.id === '80') {
+                        const jogadorEntra = evento.participants?.[0]?.athlete?.displayName || 'Jogador Entra';
+                        const jogadorSai = evento.participants?.[1]?.athlete?.displayName || 'Jogador Sai';
+
+                        atualizarFirebase('substituicao', {
+                            team: siglaTime,
+                            out: { nome: jogadorSai, num: evento.participants?.[1]?.athlete?.jersey || '--' },
+                            in: { nome: jogadorEntra, num: evento.participants?.[0]?.athlete?.jersey || '--' },
+                            hide: false
+                        });
+
+                        registrarLog(`🔄 Substituição (${siglaTime}): Entra ${jogadorEntra} / Sai ${jogadorSai}`, 'info');
+                        eventosEnviados.add(idUnico);
+                    }
+                    // 2. CAPTURA DE GOL
+                    else if (evento.type?.id === '1') { 
+                        const jogador = evento.participants?.[0]?.athlete?.displayName || 'Jogador';
+                        const numero = evento.participants?.[0]?.athlete?.jersey || '--';
+
                         atualizarFirebase('tv/gol', { teamAbbr: siglaTime, jogador, numero });
                         registrarLog(`⚽ GOL! ${jogador} (${siglaTime})`, 'success');
-                        eventosProcessados.add(idUnico);
+                        eventosEnviados.add(idUnico);
                     }
-                    else if (evento.type?.text?.toLowerCase().includes('card')) { 
-                        const corCartao = evento.type.text.toLowerCase().includes('red') ? 'vermelho' : 'amarelo';
+                    // 3. CAPTURA DE CARTÃO
+                    else if (tipoTexto.includes('card')) { 
+                        const jogador = evento.participants?.[0]?.athlete?.displayName || 'Jogador';
+                        const numero = evento.participants?.[0]?.athlete?.jersey || '--';
+                        const corCartao = tipoTexto.includes('red') ? 'vermelho' : 'amarelo';
                         
                         atualizarFirebase('tv/cartao', { teamAbbr: siglaTime, jogador, numero, tipo: corCartao });
                         registrarLog(`🟨 Cartão ${corCartao.toUpperCase()}: ${jogador} (${siglaTime})`, 'warning');
-                        eventosProcessados.add(idUnico);
+                        eventosEnviados.add(idUnico);
                     }
                 });
             } catch (err) {}
@@ -157,7 +170,6 @@ export async function buscarERodarJogo() {
         }
 
     } catch (e) {
-        console.error("Erro no loop principal:", e);
         await atualizarFirebase('tv/placar', { status: 'erro' });
         return 30000;
     }
