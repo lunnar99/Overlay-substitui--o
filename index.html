@@ -1,0 +1,982 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel de Substituição | Broadcast UI</title>
+    <style>
+        :root {
+            --bg-fallback: #0b2fe3;
+            --card-header: #201e8a;
+            --text-dark: #201e8a;
+            --text-light: #ffffff;
+            --in-color: #00b050;
+            --out-color: #ff0000;
+            --modal-bg: rgba(0, 0, 0, 0.6);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+        }
+
+        body {
+            /* Fundo usando BG.png na mesma pasta com fallback */
+            background: var(--bg-fallback) url('BG.png') center/cover no-repeat;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            /* Centraliza perfeitamente no meio da tela */
+            padding: 20px;
+            /* Respiro lateral para telas menores */
+            color: var(--text-dark);
+            overflow-x: hidden;
+        }
+
+        /* Container que abraça o Toggle e o Conteúdo */
+        .main-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            max-width: 900px;
+        }
+
+        /* Toggle Button */
+        .toggle-container {
+            background: #fff;
+            border-radius: 50px;
+            display: flex;
+            padding: 5px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            margin-bottom: 25px;
+        }
+
+        .toggle-btn {
+            background: transparent;
+            border: none;
+            padding: 10px 30px;
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text-dark);
+            border-radius: 50px;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        .toggle-btn.active {
+            background: var(--card-header);
+            color: var(--text-light);
+        }
+
+        .content-area {
+            width: 100%;
+            display: flex;
+            justify-content: center;
+        }
+
+        .view {
+            display: none;
+            width: 100%;
+            justify-content: center;
+            gap: 30px;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .view.active {
+            display: flex;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Dropdowns */
+        .custom-select-wrapper {
+            position: relative;
+            width: 100%;
+        }
+
+        .custom-select-wrapper::after {
+            content: '▼';
+            position: absolute;
+            right: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-dark);
+            pointer-events: none;
+            font-size: 0.8rem;
+        }
+
+        .custom-select {
+            width: 100%;
+            padding: 15px 20px;
+            border: 2px solid var(--text-dark);
+            border-radius: 50px;
+            font-size: 1rem;
+            color: var(--text-dark);
+            outline: none;
+            background: #fff;
+            font-weight: 600;
+            appearance: none;
+            cursor: pointer;
+        }
+
+        .card-sub {
+            background: #fff;
+            padding: 40px;
+            border-radius: 25px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            width: 100%;
+            max-width: 420px;
+        }
+
+        .input-with-icon {
+            display: flex;
+            align-items: center;
+            border: 2px solid var(--text-dark);
+            border-radius: 50px;
+            padding: 0 20px;
+            background: #fff;
+            position: relative;
+        }
+
+        .input-with-icon span {
+            font-weight: 600;
+            color: var(--text-dark);
+            width: 70px;
+        }
+
+        .input-with-icon input {
+            border: none;
+            outline: none;
+            padding: 15px 0;
+            font-size: 1.2rem;
+            width: 100%;
+            color: var(--text-dark);
+            font-weight: bold;
+            text-align: center;
+        }
+
+        .player-preview-name {
+            position: absolute;
+            right: 50px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            color: #666;
+            pointer-events: none;
+            text-transform: uppercase;
+        }
+
+        .icon-arrow {
+            font-size: 1.5rem;
+        }
+
+        .icon-arrow.in {
+            color: var(--in-color);
+        }
+
+        .icon-arrow.out {
+            color: var(--out-color);
+        }
+
+        .btn-enviar {
+            background: var(--card-header);
+            color: #fff;
+            border: none;
+            padding: 15px;
+            border-radius: 50px;
+            font-size: 1.2rem;
+            font-weight: 800;
+            cursor: pointer;
+            text-transform: uppercase;
+            margin-top: 10px;
+            transition: 0.2s;
+        }
+
+        .btn-enviar:hover {
+            transform: scale(1.02);
+        }
+
+        /* View Jogadores */
+        .card-team {
+            background: #fff;
+            border-radius: 25px;
+            width: 100%;
+            max-width: 380px;
+            height: 480px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+        }
+
+        .team-header {
+            background: var(--card-header);
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .header-select-wrapper {
+            position: relative;
+            flex: 1;
+        }
+
+        .header-select-wrapper::after {
+            content: '▼';
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: white;
+            pointer-events: none;
+            font-size: 0.8rem;
+        }
+
+        .header-select-wrapper select {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 50px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            outline: none;
+            cursor: pointer;
+            appearance: none;
+        }
+
+        .header-select-wrapper select option {
+            color: black;
+            background: white;
+        }
+
+        .btn-add {
+            background: transparent;
+            color: white;
+            border: none;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            font-weight: 300;
+            font-size: 2rem;
+            line-height: 1;
+            transition: 0.2s;
+        }
+
+        .btn-add:hover {
+            transform: scale(1.1);
+        }
+
+        .player-list {
+            list-style: none;
+            padding: 10px 15px;
+            overflow-y: auto;
+            flex: 1;
+            background: #ffffff;
+        }
+
+        .player-list::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .player-list::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .player-list::-webkit-scrollbar-thumb {
+            background: #d1d1d1;
+            border-radius: 10px;
+        }
+
+        .player-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 15px;
+            border-bottom: 1px solid #eaeaea;
+            cursor: pointer;
+            transition: background 0.2s;
+            border-radius: 10px;
+        }
+
+        .player-item:hover {
+            background: #f8f9fa;
+        }
+
+        .player-item:last-child {
+            border-bottom: none;
+        }
+
+        .player-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #e0e0e0;
+            margin-right: 15px;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .player-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .player-info {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .player-name {
+            font-weight: 600;
+            font-size: 0.95rem;
+            color: var(--text-dark);
+        }
+
+        .player-num {
+            font-weight: 900;
+            font-size: 1.1rem;
+            color: var(--text-dark);
+        }
+
+        .empty-msg {
+            text-align: center;
+            color: #999;
+            margin-top: 2rem;
+            font-size: 0.9rem;
+        }
+
+        /* Modal Customizado */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--modal-bg);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            backdrop-filter: blur(5px);
+            padding: 20px;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+            animation: fadeIn 0.2s;
+        }
+
+        .modal-card {
+            background: white;
+            width: 100%;
+            max-width: 360px;
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.3);
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .modal-title {
+            color: var(--text-dark);
+            font-size: 1.2rem;
+            font-weight: 800;
+            text-align: center;
+        }
+
+        .modal-message {
+            color: #555;
+            text-align: center;
+            font-size: 0.9rem;
+        }
+
+        .modal-input {
+            width: 100%;
+            padding: 12px 15px;
+            border: 1px solid #ccc;
+            border-radius: 10px;
+            font-size: 1rem;
+            outline: none;
+            transition: 0.2s;
+        }
+
+        .modal-input:focus {
+            border-color: var(--card-header);
+        }
+
+        .file-upload-label {
+            display: block;
+            text-align: center;
+            padding: 10px;
+            border: 1px dashed #aaa;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            color: #555;
+            background: #f9f9f9;
+        }
+
+        .file-upload-label:hover {
+            background: #f0f0f0;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .modal-btn {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 10px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.2s;
+            font-size: 0.9rem;
+        }
+
+        .btn-cancel {
+            background: #f1f1f1;
+            color: #333;
+        }
+
+        .btn-cancel:hover {
+            background: #e1e1e1;
+        }
+
+        .btn-confirm {
+            background: var(--card-header);
+            color: white;
+        }
+
+        .btn-confirm:hover {
+            filter: brightness(1.1);
+        }
+
+        .btn-delete {
+            background: var(--out-color);
+            color: white;
+            display: none;
+        }
+
+        /* Toast Feedback */
+        .toast-container {
+            position: fixed;
+            bottom: -100px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #fff;
+            padding: 15px 25px;
+            border-radius: 50px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            transition: bottom 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            z-index: 900;
+        }
+
+        .toast-container.show {
+            bottom: 40px;
+        }
+
+        .toast-msg {
+            font-weight: 700;
+            color: var(--text-dark);
+        }
+
+        .toast-btn {
+            background: var(--text-dark);
+            color: white;
+            border: none;
+            padding: 8px 20px;
+            border-radius: 50px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .toast-btn.active {
+            background: var(--out-color);
+        }
+
+        /* --- ADAPTAÇÃO MOBILE (RESPONSIVIDADE E RESPIRO) --- */
+        @media (max-width: 768px) {
+            body {
+                justify-content: flex-start;
+                padding: 30px 15px;
+            }
+
+            .view {
+                flex-direction: column;
+                align-items: center;
+                gap: 20px;
+            }
+
+            .card-sub {
+                padding: 25px 20px;
+            }
+
+            .card-team {
+                height: 380px;
+            }
+
+            .toast-container {
+                width: 90%;
+                justify-content: space-between;
+                padding: 12px 20px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="main-wrapper">
+        <div class="toggle-container">
+            <button class="toggle-btn active" id="btn-tab-sub">Substituição</button>
+            <button class="toggle-btn" id="btn-tab-testes">Testes TV</button>
+            <button class="toggle-btn" id="btn-tab-jogadores">Jogadores</button>
+        </div>
+
+        <div class="content-area">
+            <!-- View: Substituição -->
+            <!-- View: Testes TV -->
+            <div id="view-testes" class="view">
+                <div class="card-sub" style="align-items: center;">
+                    <h3 style="color: var(--card-header); margin-bottom: 20px;">Testar Animações</h3>
+
+                    <button class="btn-enviar" onclick="abrirModalTeste('gol')"
+                        style="width: 100%; background: #3b82f6;">Simular GOL</button>
+                    <button class="btn-enviar" onclick="abrirModalTeste('cartao')"
+                        style="width: 100%; background: #eab308; color: black;">Simular CARTÃO</button>
+                    <button class="btn-enviar" onclick="abrirModalTeste('acrescimo')"
+                        style="width: 100%; background: #8b5cf6;">Simular ACRÉSCIMO</button>
+                </div>
+            </div>
+            <div id="view-sub" class="view active">
+                <div class="card-sub">
+                    <div class="custom-select-wrapper">
+                        <select id="team-select" class="custom-select">
+                            <option value="Cruzeiro">Cruzeiro</option>
+                            <option value="Flamengo">Flamengo</option>
+                            <option value="Ponte Preta">Ponte Preta</option>
+                        </select>
+                    </div>
+
+                    <div class="input-with-icon">
+                        <span>Entrada</span>
+                        <input type="number" id="num-in" placeholder="00">
+                        <span class="player-preview-name" id="preview-in-name"></span>
+                        <div class="icon-arrow in">▲</div>
+                    </div>
+
+                    <div class="input-with-icon">
+                        <span>Saída</span>
+                        <input type="number" id="num-out" placeholder="00">
+                        <span class="player-preview-name" id="preview-out-name"></span>
+                        <div class="icon-arrow out">▼</div>
+                    </div>
+
+                    <button class="btn-enviar" id="btn-send">Enviar para TV</button>
+                </div>
+            </div>
+
+            <!-- View: Jogadores -->
+            <div id="view-jogadores" class="view">
+                <div class="card-team">
+                    <div class="team-header">
+                        <div class="header-select-wrapper">
+                            <select id="select-team-left">
+                                <option value="Cruzeiro">Cruzeiro</option>
+                                <option value="Flamengo">Flamengo</option>
+                                <option value="Ponte Preta">Ponte Preta</option>
+                            </select>
+                        </div>
+                        <button class="btn-add" id="btn-add-left">+</button>
+                    </div>
+                    <ul class="player-list" id="list-left"></ul>
+                </div>
+
+                <div class="card-team">
+                    <div class="team-header">
+                        <div class="header-select-wrapper">
+                            <select id="select-team-right">
+                                <option value="Flamengo" selected>Flamengo</option>
+                                <option value="Cruzeiro">Cruzeiro</option>
+                                <option value="Ponte Preta">Ponte Preta</option>
+                            </select>
+                        </div>
+                        <button class="btn-add" id="btn-add-right">+</button>
+                    </div>
+                    <ul class="player-list" id="list-right"></ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Customizado -->
+    <div class="modal-overlay" id="custom-modal">
+        <div class="modal-card">
+            <div class="modal-title" id="modal-title">Título</div>
+            <div class="modal-message" id="modal-message" style="display:none;"></div>
+
+            <div id="modal-inputs" style="display:none; flex-direction:column; gap:10px;">
+                <input type="text" id="modal-input-name" class="modal-input" placeholder="Nome do Jogador">
+                <input type="number" id="modal-input-num" class="modal-input" placeholder="Número">
+
+                <label class="file-upload-label" for="modal-input-file">
+                    <span id="file-label-text">📁 Selecionar foto do computador</span>
+                    <input type="file" id="modal-input-file" accept="image/*" style="display: none;">
+                </label>
+            </div>
+
+            <div class="modal-actions">
+                <button class="modal-btn btn-delete" id="modal-delete">Excluir</button>
+                <button class="modal-btn btn-cancel" id="modal-cancel">Cancelar</button>
+                <button class="modal-btn btn-confirm" id="modal-confirm">Salvar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Feedback -->
+    <div class="toast-container" id="toast">
+        <span class="toast-msg">Enviado para a tela!</span>
+        <button class="toast-btn" id="toast-manter">Manter fixo</button>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+        import { getDatabase, ref, set, onValue, update } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyBH7VzRejR_jOg-ogO8mLw162PN5QKODeI",
+            authDomain: "termosm-6fed5.firebaseapp.com",
+            projectId: "termosm-6fed5",
+            databaseURL: "https://termosm-6fed5-default-rtdb.firebaseio.com",
+            storageBucket: "termosm-6fed5.firebasestorage.app",
+            messagingSenderId: "161850041087",
+            appId: "1:161850041087:web:2dc4f19760f44475fde2ca",
+            measurementId: "G-ZFYXEQ34QL"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+
+        let currentBase64Image = "";
+
+        // Converte imagem do PC em Base64
+        document.getElementById('modal-input-file').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    currentBase64Image = event.target.result;
+                    document.getElementById('file-label-text').innerText = "✓ Foto selecionada";
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        function openModal({ title, message, showInputs, isEdit = false, data = {} }) {
+            return new Promise((resolve) => {
+                const modal = document.getElementById('custom-modal');
+                const btnDelete = document.getElementById('modal-delete');
+                document.getElementById('modal-title').innerText = title;
+
+                const msgEl = document.getElementById('modal-message');
+                if (message) { msgEl.innerText = message; msgEl.style.display = 'block'; }
+                else { msgEl.style.display = 'none'; }
+
+                const inputsEl = document.getElementById('modal-inputs');
+                if (showInputs) {
+                    inputsEl.style.display = 'flex';
+                    document.getElementById('modal-input-name').value = data.nome || '';
+                    document.getElementById('modal-input-num').value = data.num || '';
+                    currentBase64Image = data.img || '';
+                    document.getElementById('file-label-text').innerText = data.img ? "✓ Foto anexada (clique p/ trocar)" : "📁 Selecionar foto do computador";
+                } else {
+                    inputsEl.style.display = 'none';
+                }
+
+                btnDelete.style.display = isEdit ? 'block' : 'none';
+                modal.classList.add('active');
+
+                document.getElementById('modal-confirm').onclick = () => {
+                    modal.classList.remove('active');
+                    if (showInputs) {
+                        resolve({
+                            action: 'save',
+                            nome: document.getElementById('modal-input-name').value,
+                            num: document.getElementById('modal-input-num').value,
+                            img: currentBase64Image
+                        });
+                    } else { resolve({ action: 'confirm' }); }
+                };
+
+                btnDelete.onclick = () => { modal.classList.remove('active'); resolve({ action: 'delete' }); };
+                document.getElementById('modal-cancel').onclick = () => { modal.classList.remove('active'); resolve({ action: 'cancel' }); };
+            });
+        }
+
+        // --- BUSCA AUTOMÁTICA AO DIGITAR O NÚMERO ---
+        let teamRoster = [];
+        const teamSelect = document.getElementById('team-select');
+
+        function loadCurrentTeamRoster() {
+            onValue(ref(db, `elencos/${teamSelect.value}`), (snapshot) => {
+                teamRoster = snapshot.val() || [];
+                checkAutoSearch('in');
+                checkAutoSearch('out');
+            });
+        }
+
+        teamSelect.addEventListener('change', loadCurrentTeamRoster);
+        loadCurrentTeamRoster();
+
+        function checkAutoSearch(type) {
+            const inputEl = document.getElementById(`num-${type}`);
+            const previewEl = document.getElementById(`preview-${type}-name`);
+            const numVal = inputEl.value.trim();
+
+            if (!numVal) { previewEl.innerText = ''; return; }
+
+            const found = teamRoster.find(p => String(p.num) === String(numVal));
+            if (found && found.nome) {
+                previewEl.innerText = found.nome;
+            } else {
+                previewEl.innerText = '';
+            }
+        }
+
+        document.getElementById('num-in').addEventListener('input', () => checkAutoSearch('in'));
+        document.getElementById('num-out').addEventListener('input', () => checkAutoSearch('out'));
+
+        // --- TOAST ---
+        let toastTimeout;
+        const toastEl = document.getElementById('toast');
+        const btnManter = document.getElementById('toast-manter');
+
+        function showToast() {
+            toastEl.classList.add('show');
+            btnManter.innerText = "Manter fixo";
+            btnManter.classList.remove('active');
+            clearTimeout(toastTimeout);
+            toastTimeout = setTimeout(() => {
+                if (btnManter.innerText !== "Desativar") toastEl.classList.remove('show');
+            }, 3000);
+        }
+
+        btnManter.addEventListener('click', () => {
+            if (btnManter.innerText === "Manter fixo") {
+                btnManter.innerText = "Desativar";
+                btnManter.classList.add('active');
+                clearTimeout(toastTimeout);
+                update(ref(db, 'substituicao'), { manter: true });
+            } else {
+                toastEl.classList.remove('show');
+                update(ref(db, 'substituicao'), { hide: true, timestamp: Date.now() });
+            }
+        });
+
+        // --- ABAS ---
+        document.getElementById('btn-tab-sub').addEventListener('click', (e) => switchTab('sub', e.target));
+        document.getElementById('btn-tab-testes').addEventListener('click', (e) => switchTab('testes', e.target)); // ADICIONE ESTA LINHA
+        document.getElementById('btn-tab-jogadores').addEventListener('click', (e) => switchTab('jogadores', e.target));
+
+        function switchTab(tab, btn) {
+            document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.toggle-btn').forEach(el => el.classList.remove('active'));
+            document.getElementById(`view-${tab}`).classList.add('active');
+            btn.classList.add('active');
+        }
+
+        // --- DISPARAR SUBSTITUIÇÃO ---
+        document.getElementById('btn-send').addEventListener('click', async () => {
+            const team = teamSelect.value;
+            const numIn = document.getElementById('num-in').value.trim();
+            const numOut = document.getElementById('num-out').value.trim();
+
+            if (!numIn || !numOut) {
+                openModal({ title: "Atenção", message: "Preencha o número de quem sai e de quem entra!", showInputs: false });
+                return;
+            }
+
+            const playerIn = teamRoster.find(p => String(p.num) === String(numIn)) || { num: numIn };
+            const playerOut = teamRoster.find(p => String(p.num) === String(numOut)) || { num: numOut };
+
+            const payload = {
+                team: team,
+                in: playerIn,
+                out: playerOut,
+                timestamp: Date.now(),
+                manter: false,
+                hide: false
+            };
+
+            await set(ref(db, 'substituicao'), payload);
+
+            document.getElementById('num-in').value = '';
+            document.getElementById('num-out').value = '';
+            document.getElementById('preview-in-name').innerText = '';
+            document.getElementById('preview-out-name').innerText = '';
+            showToast();
+        });
+
+        // --- JOGADORES CRUD ---
+        const selectLeft = document.getElementById('select-team-left');
+        const selectRight = document.getElementById('select-team-right');
+
+        selectLeft.addEventListener('change', () => syncRoster('left'));
+        selectRight.addEventListener('change', () => syncRoster('right'));
+
+        document.getElementById('btn-add-left').addEventListener('click', () => addPlayer('left'));
+        document.getElementById('btn-add-right').addEventListener('click', () => addPlayer('right'));
+
+        function syncRoster(side) {
+            const team = document.getElementById(`select-team-${side}`).value;
+            onValue(ref(db, `elencos/${team}`), (snapshot) => {
+                renderPlayers(side, team, snapshot.val() || []);
+            });
+        }
+
+        function renderPlayers(side, team, players) {
+            const listEl = document.getElementById(`list-${side}`);
+            listEl.innerHTML = '';
+
+            if (players.length === 0) {
+                listEl.innerHTML = '<div class="empty-msg">Nenhum jogador cadastrado.</div>'; return;
+            }
+
+            players.forEach((p, index) => {
+                const li = document.createElement('li');
+                li.className = 'player-item';
+
+                let imgHTML = p.img ? `<img src="${p.img}">` : '';
+
+                li.innerHTML = `
+                    <div class="player-avatar">${imgHTML}</div>
+                    <div class="player-info">
+                        <span class="player-name">${p.nome || 'Sem nome'}</span>
+                        <span class="player-num">${p.num}</span>
+                    </div>
+                `;
+
+                li.addEventListener('click', async () => {
+                    const result = await openModal({
+                        title: "Editar Jogador", showInputs: true, isEdit: true, data: p
+                    });
+
+                    if (result.action === 'save') {
+                        if (result.num) {
+                            players[index] = { nome: result.nome, num: result.num, img: result.img };
+                            set(ref(db, `elencos/${team}`), players);
+                        }
+                    } else if (result.action === 'delete') {
+                        players.splice(index, 1);
+                        set(ref(db, `elencos/${team}`), players);
+                    }
+                });
+
+                listEl.appendChild(li);
+            });
+        }
+
+        function addPlayer(side) {
+            const team = document.getElementById(`select-team-${side}`).value;
+            openModal({ title: `Adicionar ao ${team}`, showInputs: true, isEdit: false })
+                .then(result => {
+                    if (result.action === 'save' && result.num) {
+                        onValue(ref(db, `elencos/${team}`), (snapshot) => {
+                            const current = snapshot.val() || [];
+                            current.push({ nome: result.nome, num: result.num, img: result.img });
+                            set(ref(db, `elencos/${team}`), current);
+                        }, { onlyOnce: true });
+                    }
+                });
+        }
+
+        // Lógica do Modal de Teste
+        window.abrirModalTeste = function (tipo) {
+            let inputsHTML = `
+        <select id="teste-isCruzeiro" class="modal-input" style="margin-bottom:10px;">
+            <option value="true">Cruzeiro</option>
+            <option value="false">Adversário</option>
+        </select>
+    `;
+
+            if (tipo === 'gol') {
+                inputsHTML += `<input type="text" id="teste-jogador" class="modal-input" placeholder="Nome do Jogador">`;
+            } else if (tipo === 'cartao') {
+                inputsHTML += `
+            <input type="text" id="teste-jogador" class="modal-input" placeholder="Nome do Jogador" style="margin-bottom:10px;">
+            <select id="teste-tipoCartao" class="modal-input">
+                <option value="amarelo">Cartão Amarelo</option>
+                <option value="vermelho">Cartão Vermelho</option>
+            </select>`;
+            } else if (tipo === 'acrescimo') {
+                inputsHTML += `<input type="number" id="teste-minutos" class="modal-input" placeholder="Minutos (ex: +5)">`;
+            }
+
+            // Usando o mesmo modal que já criamos
+            document.getElementById('modal-title').innerText = `Testar ${tipo.toUpperCase()}`;
+            document.getElementById('modal-inputs').innerHTML = inputsHTML;
+            document.getElementById('modal-inputs').style.display = 'flex';
+            document.getElementById('custom-modal').classList.add('active');
+
+            document.getElementById('modal-confirm').onclick = async () => {
+                document.getElementById('custom-modal').classList.remove('active');
+
+                const isCruzeiro = document.getElementById('teste-isCruzeiro').value === "true";
+                let payload = { isCruzeiro, timestamp: Date.now() };
+
+                if (tipo === 'gol') payload.jogador = document.getElementById('teste-jogador').value;
+                if (tipo === 'cartao') {
+                    payload.jogador = document.getElementById('teste-jogador').value;
+                    payload.tipo = document.getElementById('teste-tipoCartao').value;
+                }
+                if (tipo === 'acrescimo') payload.minutos = document.getElementById('teste-minutos').value;
+
+                // Dispara direto pro Firebase
+                await set(ref(db, `tv/${tipo}`), payload);
+                showToast();
+            };
+        };
+
+        syncRoster('left'); syncRoster('right');
+    </script>
+</body>
+
+</html>
