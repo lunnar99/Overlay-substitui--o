@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard Broadcast | Live Monitor</title>
+    <title>Dashboard Broadcast | Multi-Ligas</title>
     <style>
         :root {
             --bg-color: #f3f4f6;
@@ -71,21 +71,32 @@
         .log-item.warning { border-left-color: var(--warning); }
         .log-time { font-size: 0.75rem; color: #6b7280; display: block; margin-bottom: 4px; }
 
-        /* Modal Overlay */
+        /* MODAL E CALENDÁRIO ESTILIZADO */
         .lobby-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(17, 24, 39, 0.95); display: flex; justify-content: center; align-items: center; z-index: 200; backdrop-filter: blur(10px); flex-direction: column; padding: 20px;}
         .lobby-overlay.hidden { display: none; }
         
-        .lobby-card { background: white; width: 100%; max-width: 650px; border-radius: 16px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); }
+        .lobby-card { background: white; width: 100%; max-width: 680px; border-radius: 16px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); }
         .lobby-header { background: var(--primary); color: white; padding: 20px; text-align: center; }
         .lobby-header h2 { margin: 0; font-size: 1.4rem; font-weight: 900; letter-spacing: 1px; }
-        
-        .lobby-filter-bar { background: #f1f5f9; padding: 12px 20px; display: flex; gap: 10px; border-bottom: 1px solid #e2e8f0; }
+
+        /* Filtro Visual de Dias (Calendário Personalizado) */
+        .date-picker-bar { display: flex; gap: 10px; overflow-x: auto; padding: 15px 20px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; }
+        .date-picker-bar::-webkit-scrollbar { height: 4px; }
+        .date-picker-bar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+
+        .date-card { flex: 0 0 auto; min-width: 75px; background: white; border: 1px solid #cbd5e1; border-radius: 10px; padding: 8px 12px; text-align: center; cursor: pointer; transition: 0.2s; }
+        .date-card:hover { border-color: var(--secondary); }
+        .date-card.active { background: var(--primary); color: white; border-color: var(--primary); box-shadow: 0 4px 10px rgba(30, 58, 138, 0.3); }
+        .date-card .day-name { font-size: 0.75rem; text-transform: uppercase; font-weight: bold; opacity: 0.8; }
+        .date-card .day-num { font-size: 1.1rem; font-weight: 900; }
+
+        .lobby-filter-bar { background: #ffffff; padding: 12px 20px; display: flex; gap: 10px; border-bottom: 1px solid #e2e8f0; }
         .filter-input { flex: 1; padding: 10px 15px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 0.95rem; outline: none; }
         .filter-input:focus { border-color: var(--secondary); }
         .btn-filter-cru { background: var(--secondary); color: white; border: none; padding: 0 15px; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 0.85rem; transition: 0.2s; white-space: nowrap; }
         .btn-filter-cru.active { background: var(--primary); }
 
-        .lobby-body { padding: 15px 20px; max-height: 380px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; background: #f8fafc;}
+        .lobby-body { padding: 15px 20px; max-height: 350px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; background: #f8fafc;}
         .lobby-body::-webkit-scrollbar { width: 8px; }
         .lobby-body::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
         
@@ -124,14 +135,19 @@
             <div class="lobby-header">
                 <h2>SELEÇÃO DE TRANSMISSÃO</h2>
             </div>
+
+            <!-- Calendário Visual de Dias -->
+            <div class="date-picker-bar" id="date-picker-bar">
+                <!-- Dias gerados via JS -->
+            </div>
             
             <div class="lobby-filter-bar">
-                <input type="text" class="filter-input" id="filter-search" placeholder="Buscar time (Ex: Vasco, Cruzeiro)...">
+                <input type="text" class="filter-input" id="filter-search" placeholder="Buscar por time...">
                 <button class="btn-filter-cru" id="btn-filter-cruzeiro">Apenas Cruzeiro</button>
             </div>
 
             <div class="lobby-body" id="games-list">
-                <div style="text-align:center; padding: 20px; color: #888; font-weight:bold;">Buscando jogos (Série A + Copa do Brasil)...</div>
+                <div style="text-align:center; padding: 20px; color: #888; font-weight:bold;">Carregando jogos...</div>
             </div>
             
             <div class="lobby-footer">
@@ -234,16 +250,47 @@
 
         let jogosCarregados = [];
         let apenasCruzeiroFiltro = false;
+        let dataFiltroSelecionada = "TODOS";
 
         const lobbyOverlay = document.getElementById('lobby-overlay');
         const gamesList = document.getElementById('games-list');
         const headerTargetLabel = document.getElementById('header-target-label');
         const filterSearch = document.getElementById('filter-search');
         const btnFilterCruzeiro = document.getElementById('btn-filter-cruzeiro');
+        const datePickerBar = document.getElementById('date-picker-bar');
 
+        // GERAÇÃO DO CALENDÁRIO VISUAL ESTILIZADO
+        function gerarCalendarioVisual() {
+            datePickerBar.innerHTML = '';
+            
+            const btnTodos = document.createElement('div');
+            btnTodos.className = `date-card ${dataFiltroSelecionada === 'TODOS' ? 'active' : ''}`;
+            btnTodos.innerHTML = `<div class="day-name">GERAL</div><div class="day-num">TODOS</div>`;
+            btnTodos.onclick = () => { dataFiltroSelecionada = 'TODOS'; renderizarJogos(); gerarCalendarioVisual(); };
+            datePickerBar.appendChild(btnTodos);
+
+            const hoje = new Date();
+            for (let i = 0; i < 7; i++) {
+                const d = new Date(hoje);
+                d.setDate(hoje.getDate() + i);
+                
+                const dayName = d.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '');
+                const dayNum = d.getDate();
+                const keyDate = d.toISOString().split('T')[0]; // YYYY-MM-DD
+
+                const card = document.createElement('div');
+                card.className = `date-card ${dataFiltroSelecionada === keyDate ? 'active' : ''}`;
+                card.innerHTML = `<div class="day-name">${dayName}</div><div class="day-num">${dayNum}</div>`;
+                card.onclick = () => { dataFiltroSelecionada = keyDate; renderizarJogos(); gerarCalendarioVisual(); };
+                datePickerBar.appendChild(card);
+            }
+        }
+
+        // BUSCA E ORDENAÇÃO POR DATA E HORÁRIO
         window.abrirLobby = async function() {
             lobbyOverlay.classList.remove('hidden');
-            gamesList.innerHTML = '<div style="text-align:center; padding: 20px; color: #888; font-weight:bold;">Buscando jogos (Série A + Copa do Brasil)...</div>';
+            gerarCalendarioVisual();
+            gamesList.innerHTML = '<div style="text-align:center; padding: 20px; color: #888; font-weight:bold;">Carregando jogos em ordem cronológica...</div>';
             jogosCarregados = [];
 
             try {
@@ -263,6 +310,9 @@
                 const resultados = await Promise.all(requisicoes);
                 jogosCarregados = resultados.flat();
 
+                // ORDENAÇÃO CRONOLÓGICA (Mais próximos primeiro)
+                jogosCarregados.sort((a, b) => new Date(a.date) - new Date(b.date));
+
                 renderizarJogos();
 
             } catch (error) {
@@ -277,29 +327,35 @@
 
             jogosCarregados.forEach(evento => {
                 const estado = evento.status.type.state; 
-                if (estado === 'post') return;
-
+                
+                // MANTÉM OCULTO APENAS JOGOS ENCERRADOS HÁ MAIS DE UM DIA
                 const comp = evento.competitions[0];
                 const timeCasa = comp.competitors.find(c => c.homeAway === 'home').team.name;
                 const timeFora = comp.competitors.find(c => c.homeAway === 'away').team.name;
                 const matchName = `${timeCasa} x ${timeFora}`.toLowerCase();
+                const dataDoJogoObj = new Date(evento.date);
+                const isoDate = dataDoJogoObj.toISOString().split('T')[0];
 
+                // FILTROS
+                if (dataFiltroSelecionada !== 'TODOS' && isoDate !== dataFiltroSelecionada) return;
                 if (apenasCruzeiroFiltro && !matchName.includes('cruzeiro')) return;
                 if (termoBusca && !matchName.includes(termoBusca)) return;
 
                 contadorVisiveis++;
 
-                const dataDoJogo = new Date(evento.date);
-                const dataFormatada = dataDoJogo.toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit'});
-                
+                const dataFormatada = dataDoJogoObj.toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit'});
                 let statusLabel = '';
                 let statusClass = '';
+
                 if(estado === 'pre') { 
-                    statusLabel = dataDoJogo.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'}); 
+                    statusLabel = dataDoJogoObj.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'}); 
                     statusClass = 'status-pre'; 
                 } else if (estado === 'in') { 
                     statusLabel = evento.status.displayClock || "AO VIVO"; 
                     statusClass = 'status-in'; 
+                } else if (estado === 'post') {
+                    statusLabel = "ENCERRADO";
+                    statusClass = 'status-pre';
                 }
 
                 const btn = document.createElement('div');
@@ -315,7 +371,6 @@
                     </div>
                 `;
                 
-                // SALVA A URL EXATA DA LIGA JUNTO COM O ID
                 btn.onclick = () => selecionarAlvo(evento.id, `${timeCasa} x ${timeFora}`, evento.urlLiga);
                 gamesList.appendChild(btn);
             });
@@ -335,9 +390,7 @@
         window.fecharLobby = () => lobbyOverlay.classList.add('hidden');
 
         window.selecionarAlvo = async function(idJogo, label, urlLiga) {
-            // LIMPA LOGS ANTIGOS AO TROCAR DE JOGO
             await remove(ref(db, 'tv/logs'));
-
             await set(ref(db, 'tv/config'), { 
                 tipo: 'id', alvo: idJogo, label: label, urlLiga: urlLiga, timestamp: Date.now() 
             });
@@ -361,7 +414,10 @@
             }
         });
 
-        // FEEDBACK VISUAL
+        // ESPELHO DE FEEDBACK VISUAL DO PAINEL
+        let mirrorSec = 0;
+        let mirrorInterval = null;
+
         onValue(ref(db, 'tv/placar'), (snap) => {
             const data = snap.val();
             if(!data) return;
@@ -376,16 +432,23 @@
                 home.innerText = "OFF"; away.innerText = "OFF";
                 scoreHome.innerText = "-"; scoreAway.innerText = "-";
                 time.innerText = "00:00";
-            } else if (data.status === 'erro') {
-                home.innerText = "ERRO"; away.innerText = "ERRO";
-                time.innerText = "API ERROR";
+                clearInterval(mirrorInterval);
             } else {
                 home.innerText = data.homeAbbr || "CASA";
                 away.innerText = data.awayAbbr || "FORA";
                 scoreHome.innerText = data.homeScore ?? 0;
                 scoreAway.innerText = data.awayScore ?? 0;
-                time.innerText = data.clock || "00:00";
-                if(data.added) time.innerText += ` (+${data.added})`;
+
+                if (data.status === 'post') {
+                    time.innerText = "FIM DE JOGO";
+                    clearInterval(mirrorInterval);
+                } else if (data.status === 'halftime' || data.clock === 'INT') {
+                    time.innerText = "INTERVALO";
+                    clearInterval(mirrorInterval);
+                } else {
+                    const min = parseInt(String(data.clock).replace(/\D/g, '')) || 0;
+                    time.innerText = `${String(min).padStart(2, '0')}:00`;
+                }
             }
         });
 
@@ -402,7 +465,6 @@
             });
         });
 
-        // MODAIS DE TESTE
         const modal = document.getElementById('modal');
         const modalBody = document.getElementById('modal-body');
         const btnConfirm = document.getElementById('modal-confirm');
