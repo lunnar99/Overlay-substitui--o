@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body { margin: 0; overflow: hidden; font-family: 'Arial Black', Impact, sans-serif; display: flex; align-items: flex-start; padding: 20px;}
+        
+        .placar-container {
+            display: flex;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.85);
+            border: 2px solid #333;
+            border-radius: 12px;
+            padding: 8px 20px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.5);
+            color: white;
+            font-size: 2.5rem;
+            position: relative;
+        }
+
+        .timer-text { font-weight: 900; letter-spacing: 2px; }
+
+        /* Animação do Acréscimo */
+        .acrescimo-box {
+            background: #eab308; /* Amarelo ouro */
+            color: #000;
+            font-size: 1.8rem;
+            font-weight: 900;
+            padding: 5px 15px;
+            border-radius: 8px;
+            margin-left: 10px;
+            box-shadow: 0 5px 15px rgba(234, 179, 8, 0.4);
+            
+            /* Estado inicial escondido e encolhido */
+            opacity: 0;
+            transform: translateX(-30px) scale(0.5);
+            pointer-events: none;
+            transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            position: absolute;
+            right: -80px; /* Joga para o lado de fora do container principal */
+        }
+
+        .acrescimo-box.show {
+            opacity: 1;
+            transform: translateX(0) scale(1);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="placar-container">
+        <div class="timer-text" id="timer">00:00</div>
+        <div class="acrescimo-box" id="acrescimo">+0</div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+        import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+        // COLOQUE SUAS CREDENCIAIS DO FIREBASE AQUI
+        const config = { databaseURL: "https://termosm-6fed5-default-rtdb.firebaseio.com" }; 
+        const db = getDatabase(initializeApp(config));
+        
+        let relogioInterval = null;
+        let minutosAtuais = 0;
+        let segundosAtuais = 0;
+        let lastTimestamp = 0;
+
+        function formatTime(min, seg) {
+            return `${String(min).padStart(2, '0')}:${String(seg).padStart(2, '0')}`;
+        }
+
+        function iniciarRelogio() {
+            clearInterval(relogioInterval);
+            relogioInterval = setInterval(() => {
+                segundosAtuais++;
+                if (segundosAtuais >= 60) {
+                    minutosAtuais++;
+                    segundosAtuais = 0;
+                }
+                document.getElementById('timer').innerText = formatTime(minutosAtuais, segundosAtuais);
+            }, 1000);
+        }
+
+        onValue(ref(db, 'tv/placar'), (snap) => {
+            const data = snap.val();
+            if (!data || data.timestamp === lastTimestamp) return;
+            lastTimestamp = data.timestamp;
+
+            if (data.acao === 'start') {
+                // Inicia o cronômetro localmente
+                minutosAtuais = data.minutos || 0;
+                segundosAtuais = data.segundos || 0;
+                document.getElementById('timer').innerText = formatTime(minutosAtuais, segundosAtuais);
+                iniciarRelogio();
+            } 
+            else if (data.acao === 'reset') {
+                // Zera e esconde o acréscimo
+                clearInterval(relogioInterval);
+                minutosAtuais = 0;
+                segundosAtuais = 0;
+                document.getElementById('timer').innerText = "00:00";
+                document.getElementById('acrescimo').classList.remove('show');
+            }
+            else if (data.acao === 'acrescimo') {
+                // Mostra a animação bonita ao lado do tempo
+                const box = document.getElementById('acrescimo');
+                box.innerText = `+${data.minutos}`;
+                box.classList.add('show');
+            }
+        });
+    </script>
+</body>
+</html>

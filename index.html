@@ -1,10 +1,9 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Painel de Substituição | Broadcast UI</title>
+    <title>Painel de Broadcast Profissional</title>
     <style>
         :root {
             --bg-fallback: #0b2fe3;
@@ -13,632 +12,201 @@
             --text-light: #ffffff;
             --in-color: #00b050;
             --out-color: #ff0000;
+            --glass-bg: rgba(255, 255, 255, 0.85);
+            --glass-border: rgba(255, 255, 255, 0.5);
             --modal-bg: rgba(0, 0, 0, 0.6);
         }
 
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: 'Segoe UI', system-ui, sans-serif;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', system-ui, sans-serif; }
 
         body {
-            /* Fundo usando BG.png na mesma pasta com fallback */
             background: var(--bg-fallback) url('BG.png') center/cover no-repeat;
             min-height: 100vh;
             display: flex;
-            flex-direction: column;
-            align-items: center;
             justify-content: center;
-            /* Centraliza perfeitamente no meio da tela */
-            padding: 20px;
-            /* Respiro lateral para telas menores */
+            align-items: stretch;
+            padding: 30px;
             color: var(--text-dark);
-            overflow-x: hidden;
+            overflow: hidden;
+            gap: 30px;
         }
 
-        /* Container que abraça o Toggle e o Conteúdo */
-        .main-wrapper {
+        /* LADO ESQUERDO: Painel de Controle */
+        .left-panel {
+            flex: 1;
+            max-width: 700px;
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: center;
-            width: 100%;
-            max-width: 900px;
         }
 
-        /* Toggle Button */
         .toggle-container {
-            background: #fff;
-            border-radius: 50px;
-            display: flex;
-            padding: 5px;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-            margin-bottom: 25px;
+            background: #fff; border-radius: 50px; display: flex; padding: 5px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.15); margin-bottom: 25px; width: fit-content;
         }
 
         .toggle-btn {
-            background: transparent;
-            border: none;
-            padding: 10px 30px;
-            font-size: 1rem;
-            font-weight: 600;
-            color: var(--text-dark);
-            border-radius: 50px;
-            cursor: pointer;
-            transition: 0.3s;
+            background: transparent; border: none; padding: 10px 20px; font-size: 0.95rem;
+            font-weight: 600; color: var(--text-dark); border-radius: 50px; cursor: pointer; transition: 0.3s;
         }
+        .toggle-btn.active { background: var(--card-header); color: var(--text-light); }
 
-        .toggle-btn.active {
-            background: var(--card-header);
-            color: var(--text-light);
+        .content-area { width: 100%; display: flex; justify-content: center; }
+        .view { display: none; width: 100%; justify-content: center; gap: 20px; animation: fadeIn 0.3s ease; }
+        .view.active { display: flex; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Estilização Geral dos Cards */
+        .card-sub, .card-team {
+            background: #fff; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.2);
         }
-
-        .content-area {
-            width: 100%;
-            display: flex;
-            justify-content: center;
-        }
-
-        .view {
-            display: none;
-            width: 100%;
-            justify-content: center;
-            gap: 30px;
-            animation: fadeIn 0.3s ease;
-        }
-
-        .view.active {
-            display: flex;
-        }
-
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(10px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        /* Dropdowns */
-        .custom-select-wrapper {
-            position: relative;
-            width: 100%;
-        }
-
-        .custom-select-wrapper::after {
-            content: '▼';
-            position: absolute;
-            right: 20px;
-            top: 50%;
-            transform: translateY(-50%);
-            color: var(--text-dark);
-            pointer-events: none;
-            font-size: 0.8rem;
-        }
-
+        .card-sub { padding: 30px; display: flex; flex-direction: column; gap: 15px; width: 100%; max-width: 420px; }
+        .card-team { width: 100%; max-width: 320px; height: 500px; display: flex; flex-direction: column; overflow: hidden;}
+        
         .custom-select {
-            width: 100%;
-            padding: 15px 20px;
-            border: 2px solid var(--text-dark);
-            border-radius: 50px;
-            font-size: 1rem;
-            color: var(--text-dark);
-            outline: none;
-            background: #fff;
-            font-weight: 600;
-            appearance: none;
-            cursor: pointer;
+            width: 100%; padding: 15px; border: 2px solid var(--text-dark); border-radius: 15px;
+            font-size: 1rem; color: var(--text-dark); outline: none; font-weight: 600;
         }
+        
+        .btn-enviar { background: var(--card-header); color: #fff; border: none; padding: 12px; border-radius: 15px; font-size: 1rem; font-weight: 800; cursor: pointer; transition: 0.2s; text-transform: uppercase;}
+        .btn-enviar:hover { filter: brightness(1.1); transform: scale(1.02); }
+        
+        .team-header { background: var(--card-header); padding: 15px; display: flex; justify-content: space-between; align-items: center; }
+        .team-header select { width: 80%; background: rgba(255,255,255,0.1); color: white; border: none; padding: 5px; border-radius: 10px; font-size: 1rem; font-weight: 600; outline: none; }
+        .team-header select option { color: black; }
+        .btn-add { background: transparent; color: white; border: none; font-size: 1.8rem; cursor: pointer; }
+        
+        .player-list { list-style: none; padding: 10px; overflow-y: auto; flex: 1; }
+        .player-item { display: flex; align-items: center; padding: 10px; border-bottom: 1px solid #eaeaea; cursor: pointer; }
+        .player-avatar { width: 35px; height: 35px; border-radius: 50%; background: #eee; margin-right: 15px; overflow: hidden; display: flex; justify-content: center; align-items: center;}
+        .player-avatar img { width: 100%; height: 100%; object-fit: cover; }
+        .player-info { flex: 1; display: flex; flex-direction: column; }
+        .player-name { font-weight: 600; font-size: 0.9rem; } .player-num { font-weight: 900; font-size: 1.1rem; }
 
-        .card-sub {
-            background: #fff;
-            padding: 40px;
+        /* LADO DIREITO: LOGS E CONTROLE DO ROBÔ (GLASSMORPHISM) */
+        .right-panel {
+            width: 380px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            border: 1px solid var(--glass-border);
             border-radius: 25px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
             display: flex;
             flex-direction: column;
-            gap: 20px;
-            width: 100%;
-            max-width: 420px;
-        }
-
-        .input-with-icon {
-            display: flex;
-            align-items: center;
-            border: 2px solid var(--text-dark);
-            border-radius: 50px;
-            padding: 0 20px;
-            background: #fff;
-            position: relative;
-        }
-
-        .input-with-icon span {
-            font-weight: 600;
-            color: var(--text-dark);
-            width: 70px;
-        }
-
-        .input-with-icon input {
-            border: none;
-            outline: none;
-            padding: 15px 0;
-            font-size: 1.2rem;
-            width: 100%;
-            color: var(--text-dark);
-            font-weight: bold;
-            text-align: center;
-        }
-
-        .player-preview-name {
-            position: absolute;
-            right: 50px;
-            font-size: 0.8rem;
-            font-weight: bold;
-            color: #666;
-            pointer-events: none;
-            text-transform: uppercase;
-        }
-
-        .icon-arrow {
-            font-size: 1.5rem;
-        }
-
-        .icon-arrow.in {
-            color: var(--in-color);
-        }
-
-        .icon-arrow.out {
-            color: var(--out-color);
-        }
-
-        .btn-enviar {
-            background: var(--card-header);
-            color: #fff;
-            border: none;
-            padding: 15px;
-            border-radius: 50px;
-            font-size: 1.2rem;
-            font-weight: 800;
-            cursor: pointer;
-            text-transform: uppercase;
-            margin-top: 10px;
-            transition: 0.2s;
-        }
-
-        .btn-enviar:hover {
-            transform: scale(1.02);
-        }
-
-        /* View Jogadores */
-        .card-team {
-            background: #fff;
-            border-radius: 25px;
-            width: 100%;
-            max-width: 380px;
-            height: 480px;
-            display: flex;
-            flex-direction: column;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
             overflow: hidden;
         }
 
-        .team-header {
-            background: var(--card-header);
-            padding: 15px 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 10px;
+        .robot-header {
+            background: rgba(32, 30, 138, 0.9);
+            color: white; padding: 20px;
+            display: flex; flex-direction: column; gap: 15px;
         }
+        .robot-title { font-size: 1.2rem; font-weight: 800; display: flex; align-items: center; justify-content: space-between; }
+        
+        .switch { position: relative; display: inline-block; width: 50px; height: 26px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 34px; }
+        .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: var(--in-color); }
+        input:checked + .slider:before { transform: translateX(24px); }
 
-        .header-select-wrapper {
-            position: relative;
-            flex: 1;
+        .btn-force {
+            background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.5);
+            color: white; padding: 10px; border-radius: 10px; font-weight: 600; cursor: pointer; transition: 0.2s;
         }
+        .btn-force:hover { background: white; color: var(--card-header); }
 
-        .header-select-wrapper::after {
-            content: '▼';
-            position: absolute;
-            right: 10px;
-            top: 50%;
-            transform: translateY(-50%);
-            color: white;
-            pointer-events: none;
-            font-size: 0.8rem;
+        .logs-container {
+            flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px;
         }
+        .logs-container::-webkit-scrollbar { width: 5px; }
+        .logs-container::-webkit-scrollbar-thumb { background: #b0b0b0; border-radius: 10px; }
 
-        .header-select-wrapper select {
-            width: 100%;
-            background: rgba(255, 255, 255, 0.1);
-            color: white;
-            border: none;
-            padding: 10px 15px;
-            border-radius: 50px;
-            font-size: 1.1rem;
-            font-weight: 600;
-            outline: none;
-            cursor: pointer;
-            appearance: none;
+        .log-entry {
+            background: white; padding: 12px 15px; border-radius: 12px;
+            font-size: 0.85rem; font-weight: 600; box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+            animation: slideIn 0.3s ease-out; border-left: 4px solid #ccc;
         }
+        .log-entry.info { border-left-color: #3b82f6; }
+        .log-entry.success { border-left-color: var(--in-color); }
+        .log-entry.warning { border-left-color: #f59e0b; }
+        
+        .log-time { font-size: 0.7rem; color: #888; margin-bottom: 3px; display: block; }
 
-        .header-select-wrapper select option {
-            color: black;
-            background: white;
-        }
+        @keyframes slideIn { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
 
-        .btn-add {
-            background: transparent;
-            color: white;
-            border: none;
-            width: 30px;
-            height: 30px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            cursor: pointer;
-            font-weight: 300;
-            font-size: 2rem;
-            line-height: 1;
-            transition: 0.2s;
-        }
-
-        .btn-add:hover {
-            transform: scale(1.1);
-        }
-
-        .player-list {
-            list-style: none;
-            padding: 10px 15px;
-            overflow-y: auto;
-            flex: 1;
-            background: #ffffff;
-        }
-
-        .player-list::-webkit-scrollbar {
-            width: 6px;
-        }
-
-        .player-list::-webkit-scrollbar-track {
-            background: transparent;
-        }
-
-        .player-list::-webkit-scrollbar-thumb {
-            background: #d1d1d1;
-            border-radius: 10px;
-        }
-
-        .player-item {
-            display: flex;
-            align-items: center;
-            padding: 12px 15px;
-            border-bottom: 1px solid #eaeaea;
-            cursor: pointer;
-            transition: background 0.2s;
-            border-radius: 10px;
-        }
-
-        .player-item:hover {
-            background: #f8f9fa;
-        }
-
-        .player-item:last-child {
-            border-bottom: none;
-        }
-
-        .player-avatar {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            background: #e0e0e0;
-            margin-right: 15px;
-            overflow: hidden;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-
-        .player-avatar img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-
-        .player-info {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .player-name {
-            font-weight: 600;
-            font-size: 0.95rem;
-            color: var(--text-dark);
-        }
-
-        .player-num {
-            font-weight: 900;
-            font-size: 1.1rem;
-            color: var(--text-dark);
-        }
-
-        .empty-msg {
-            text-align: center;
-            color: #999;
-            margin-top: 2rem;
-            font-size: 0.9rem;
-        }
-
-        /* Modal Customizado */
-        .modal-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: var(--modal-bg);
-            display: none;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-            backdrop-filter: blur(5px);
-            padding: 20px;
-        }
-
-        .modal-overlay.active {
-            display: flex;
-            animation: fadeIn 0.2s;
-        }
-
-        .modal-card {
-            background: white;
-            width: 100%;
-            max-width: 360px;
-            padding: 30px;
-            border-radius: 20px;
-            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.3);
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-        }
-
-        .modal-title {
-            color: var(--text-dark);
-            font-size: 1.2rem;
-            font-weight: 800;
-            text-align: center;
-        }
-
-        .modal-message {
-            color: #555;
-            text-align: center;
-            font-size: 0.9rem;
-        }
-
-        .modal-input {
-            width: 100%;
-            padding: 12px 15px;
-            border: 1px solid #ccc;
-            border-radius: 10px;
-            font-size: 1rem;
-            outline: none;
-            transition: 0.2s;
-        }
-
-        .modal-input:focus {
-            border-color: var(--card-header);
-        }
-
-        .file-upload-label {
-            display: block;
-            text-align: center;
-            padding: 10px;
-            border: 1px dashed #aaa;
-            border-radius: 10px;
-            cursor: pointer;
-            font-size: 0.85rem;
-            color: #555;
-            background: #f9f9f9;
-        }
-
-        .file-upload-label:hover {
-            background: #f0f0f0;
-        }
-
-        .modal-actions {
-            display: flex;
-            gap: 8px;
-            margin-top: 10px;
-        }
-
-        .modal-btn {
-            flex: 1;
-            padding: 12px;
-            border: none;
-            border-radius: 10px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: 0.2s;
-            font-size: 0.9rem;
-        }
-
-        .btn-cancel {
-            background: #f1f1f1;
-            color: #333;
-        }
-
-        .btn-cancel:hover {
-            background: #e1e1e1;
-        }
-
-        .btn-confirm {
-            background: var(--card-header);
-            color: white;
-        }
-
-        .btn-confirm:hover {
-            filter: brightness(1.1);
-        }
-
-        .btn-delete {
-            background: var(--out-color);
-            color: white;
-            display: none;
-        }
-
-        /* Toast Feedback */
-        .toast-container {
-            position: fixed;
-            bottom: -100px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: #fff;
-            padding: 15px 25px;
-            border-radius: 50px;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
-            display: flex;
-            align-items: center;
-            gap: 20px;
-            transition: bottom 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            z-index: 900;
-        }
-
-        .toast-container.show {
-            bottom: 40px;
-        }
-
-        .toast-msg {
-            font-weight: 700;
-            color: var(--text-dark);
-        }
-
-        .toast-btn {
-            background: var(--text-dark);
-            color: white;
-            border: none;
-            padding: 8px 20px;
-            border-radius: 50px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: 0.2s;
-        }
-
-        .toast-btn.active {
-            background: var(--out-color);
-        }
-
-        /* --- ADAPTAÇÃO MOBILE (RESPONSIVIDADE E RESPIRO) --- */
-        @media (max-width: 768px) {
-            body {
-                justify-content: flex-start;
-                padding: 30px 15px;
-            }
-
-            .view {
-                flex-direction: column;
-                align-items: center;
-                gap: 20px;
-            }
-
-            .card-sub {
-                padding: 25px 20px;
-            }
-
-            .card-team {
-                height: 380px;
-            }
-
-            .toast-container {
-                width: 90%;
-                justify-content: space-between;
-                padding: 12px 20px;
-            }
-        }
+        /* Modal / Toast */
+        .toast-container { position: fixed; bottom: -100px; left: 50%; transform: translateX(-50%); background: #fff; padding: 15px 25px; border-radius: 50px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); display: flex; align-items: center; gap: 20px; transition: bottom 0.4s; z-index: 900;}
+        .toast-container.show { bottom: 40px; }
+        .toast-msg { font-weight: 700; color: var(--text-dark); }
+        .toast-btn { background: var(--text-dark); color: white; border: none; padding: 8px 20px; border-radius: 50px; font-weight: bold; cursor: pointer; transition: 0.2s; } .toast-btn.active { background: var(--out-color); }
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--modal-bg); display: none; justify-content: center; align-items: center; z-index: 1000;}
+        .modal-overlay.active { display: flex; } .modal-card { background: white; width: 360px; padding: 30px; border-radius: 20px; display: flex; flex-direction: column; gap: 15px;}
+        .modal-input { width: 100%; padding: 12px 15px; border: 1px solid #ccc; border-radius: 10px; font-size: 1rem; outline: none;}
+        .modal-actions { display: flex; gap: 8px; margin-top: 10px; } .modal-btn { flex: 1; padding: 12px; border: none; border-radius: 10px; font-weight: bold; cursor: pointer;}
+        .btn-confirm { background: var(--card-header); color: white; } .btn-cancel { background: #f1f1f1; color: #333; } .btn-delete { background: var(--out-color); color: white; display: none; }
+        
+        .file-upload-label { display: block; text-align: center; padding: 10px; border: 1px dashed #aaa; border-radius: 10px; cursor: pointer; font-size: 0.85rem; color: #555; background: #f9f9f9; }
+        
+        .divider { border-bottom: 1px solid #eee; margin: 10px 0; }
     </style>
 </head>
-
 <body>
 
-    <div class="main-wrapper">
+    <!-- LADO ESQUERDO: SISTEMA DE OPERAÇÃO -->
+    <div class="left-panel">
         <div class="toggle-container">
-            <button class="toggle-btn active" id="btn-tab-sub">Substituição</button>
-            <button class="toggle-btn" id="btn-tab-testes">Testes TV</button>
+            <!-- A ABA DE SUBSTITUIÇÃO FOI OCULTADA POIS AGORA É AUTOMÁTICO -->
+            <!-- <button class="toggle-btn" id="btn-tab-sub">Substituição</button> -->
+            
+            <button class="toggle-btn active" id="btn-tab-testes">Testes TV</button>
             <button class="toggle-btn" id="btn-tab-jogadores">Jogadores</button>
         </div>
 
         <div class="content-area">
-            <!-- View: Substituição -->
-            <!-- View: Testes TV -->
-            <div id="view-testes" class="view">
-                <div class="card-sub" style="align-items: center;">
-                    <h3 style="color: var(--card-header); margin-bottom: 20px;">Testar Animações</h3>
-
-                    <button class="btn-enviar" onclick="abrirModalTeste('gol')"
-                        style="width: 100%; background: #3b82f6;">Simular GOL</button>
-                    <button class="btn-enviar" onclick="abrirModalTeste('cartao')"
-                        style="width: 100%; background: #eab308; color: black;">Simular CARTÃO</button>
-                    <button class="btn-enviar" onclick="abrirModalTeste('acrescimo')"
-                        style="width: 100%; background: #8b5cf6;">Simular ACRÉSCIMO</button>
-                </div>
-            </div>
-            <div id="view-sub" class="view active">
+            
+            <!-- Aba 1: Substituição (OCULTA) -->
+            <!--
+            <div id="view-sub" class="view">
                 <div class="card-sub">
-                    <div class="custom-select-wrapper">
-                        <select id="team-select" class="custom-select">
-                            <option value="Cruzeiro">Cruzeiro</option>
-                            <option value="Flamengo">Flamengo</option>
-                            <option value="Ponte Preta">Ponte Preta</option>
-                        </select>
-                    </div>
+                    ... HTML de substituição comentado ...
+                </div>
+            </div>
+            -->
 
-                    <div class="input-with-icon">
-                        <span>Entrada</span>
-                        <input type="number" id="num-in" placeholder="00">
-                        <span class="player-preview-name" id="preview-in-name"></span>
-                        <div class="icon-arrow in">▲</div>
+            <!-- Aba 2: Testes (Ativa por padrão) -->
+            <div id="view-testes" class="view active">
+                <div class="card-sub" style="align-items: center; text-align: center;">
+                    <h3 style="color: var(--card-header);">Simular Gráficos na TV</h3>
+                    
+                    <button class="btn-enviar" onclick="abrirModalTeste('gol')" style="width: 100%; background: #3b82f6;">Simular GOL</button>
+                    <button class="btn-enviar" onclick="abrirModalTeste('cartao')" style="width: 100%; background: #eab308; color: black;">Simular CARTÃO</button>
+                    <button class="btn-enviar" onclick="abrirModalTeste('substituicao')" style="width: 100%; background: #10b981;">Simular SUBSTITUIÇÃO</button>
+                    
+                    <div class="divider" style="width: 100%;"></div>
+                    <h3 style="color: var(--card-header);">Temporizador / Placar</h3>
+                    
+                    <div style="display: flex; gap: 10px; width: 100%;">
+                        <button class="btn-enviar" onclick="testarPlacar('start')" style="flex: 1; background: #22c55e;">▶ Iniciar</button>
+                        <button class="btn-enviar" onclick="testarPlacar('reset')" style="flex: 1; background: #ef4444;">⏹ Zerar</button>
                     </div>
-
-                    <div class="input-with-icon">
-                        <span>Saída</span>
-                        <input type="number" id="num-out" placeholder="00">
-                        <span class="player-preview-name" id="preview-out-name"></span>
-                        <div class="icon-arrow out">▼</div>
-                    </div>
-
-                    <button class="btn-enviar" id="btn-send">Enviar para TV</button>
+                    <button class="btn-enviar" onclick="testarPlacar('acrescimo')" style="width: 100%; background: #8b5cf6;">+ Adicionar Acréscimo (+5)</button>
                 </div>
             </div>
 
-            <!-- View: Jogadores -->
+            <!-- Aba 3: Jogadores -->
             <div id="view-jogadores" class="view">
                 <div class="card-team">
                     <div class="team-header">
-                        <div class="header-select-wrapper">
-                            <select id="select-team-left">
-                                <option value="Cruzeiro">Cruzeiro</option>
-                                <option value="Flamengo">Flamengo</option>
-                                <option value="Ponte Preta">Ponte Preta</option>
-                            </select>
-                        </div>
+                        <select id="select-team-left"><option value="Cruzeiro">Cruzeiro</option><option value="Flamengo">Flamengo</option></select>
                         <button class="btn-add" id="btn-add-left">+</button>
                     </div>
                     <ul class="player-list" id="list-left"></ul>
                 </div>
-
                 <div class="card-team">
                     <div class="team-header">
-                        <div class="header-select-wrapper">
-                            <select id="select-team-right">
-                                <option value="Flamengo" selected>Flamengo</option>
-                                <option value="Cruzeiro">Cruzeiro</option>
-                                <option value="Ponte Preta">Ponte Preta</option>
-                            </select>
-                        </div>
+                        <select id="select-team-right"><option value="Flamengo" selected>Flamengo</option><option value="Cruzeiro">Cruzeiro</option></select>
                         <button class="btn-add" id="btn-add-right">+</button>
                     </div>
                     <ul class="player-list" id="list-right"></ul>
@@ -647,41 +215,47 @@
         </div>
     </div>
 
-    <!-- Modal Customizado -->
+    <!-- LADO DIREITO: LOGS E ROBÔ DA ESPN -->
+    <div class="right-panel">
+        <div class="robot-header">
+            <div class="robot-title">
+                Monitor Automático
+                <label class="switch">
+                    <input type="checkbox" id="toggle-robo" checked>
+                    <span class="slider"></span>
+                </label>
+            </div>
+            <button class="btn-force" id="btn-force-fetch">Verificar Jogo Agora</button>
+        </div>
+        <div class="logs-container" id="logs-area">
+            <!-- Logs aparecerão aqui dinamicamente -->
+        </div>
+    </div>
+
+    <!-- Modais e Toast (Ocultos) -->
+    <div class="toast-container" id="toast">
+        <span class="toast-msg" id="toast-text">Enviado para a tela!</span>
+    </div>
+    
     <div class="modal-overlay" id="custom-modal">
         <div class="modal-card">
             <div class="modal-title" id="modal-title">Título</div>
-            <div class="modal-message" id="modal-message" style="display:none;"></div>
-
-            <div id="modal-inputs" style="display:none; flex-direction:column; gap:10px;">
-                <input type="text" id="modal-input-name" class="modal-input" placeholder="Nome do Jogador">
-                <input type="number" id="modal-input-num" class="modal-input" placeholder="Número">
-
-                <label class="file-upload-label" for="modal-input-file">
-                    <span id="file-label-text">📁 Selecionar foto do computador</span>
-                    <input type="file" id="modal-input-file" accept="image/*" style="display: none;">
-                </label>
-            </div>
-
+            <div id="modal-inputs" style="display:flex; flex-direction:column; gap:10px;"></div>
             <div class="modal-actions">
                 <button class="modal-btn btn-delete" id="modal-delete">Excluir</button>
                 <button class="modal-btn btn-cancel" id="modal-cancel">Cancelar</button>
-                <button class="modal-btn btn-confirm" id="modal-confirm">Salvar</button>
+                <button class="modal-btn btn-confirm" id="modal-confirm">Confirmar</button>
             </div>
         </div>
     </div>
 
-    <!-- Toast Feedback -->
-    <div class="toast-container" id="toast">
-        <span class="toast-msg">Enviado para a tela!</span>
-        <button class="toast-btn" id="toast-manter">Manter fixo</button>
-    </div>
-
+    <!-- SCRIPT 100% COMPLETO -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-        import { getDatabase, ref, set, onValue, update } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+        import { getDatabase, ref, set, onValue, update, push, query, limitToLast } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
-        const firebaseConfig = {
+        // COLOQUE SUAS CREDENCIAIS AQUI
+        const config = {
             apiKey: "AIzaSyBH7VzRejR_jOg-ogO8mLw162PN5QKODeI",
             authDomain: "termosm-6fed5.firebaseapp.com",
             projectId: "termosm-6fed5",
@@ -691,177 +265,137 @@
             appId: "1:161850041087:web:2dc4f19760f44475fde2ca",
             measurementId: "G-ZFYXEQ34QL"
         };
-
-        const app = initializeApp(firebaseConfig);
+        const app = initializeApp(config);
         const db = getDatabase(app);
 
-        let currentBase64Image = "";
+        // ==========================================
+        // 1. SISTEMA DE LOGS E CONTROLE DO ROBÔ
+        // ==========================================
+        const logsArea = document.getElementById('logs-area');
+        const toggleRobo = document.getElementById('toggle-robo');
+        const btnForce = document.getElementById('btn-force-fetch');
 
-        // Converte imagem do PC em Base64
-        document.getElementById('modal-input-file').addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = (event) => {
-                    currentBase64Image = event.target.result;
-                    document.getElementById('file-label-text').innerText = "✓ Foto selecionada";
-                };
-                reader.readAsDataURL(file);
-            }
+        onValue(ref(db, 'tv/controle/ativo'), (snap) => {
+            if(snap.exists()) toggleRobo.checked = snap.val();
         });
 
-        function openModal({ title, message, showInputs, isEdit = false, data = {} }) {
-            return new Promise((resolve) => {
-                const modal = document.getElementById('custom-modal');
-                const btnDelete = document.getElementById('modal-delete');
-                document.getElementById('modal-title').innerText = title;
-
-                const msgEl = document.getElementById('modal-message');
-                if (message) { msgEl.innerText = message; msgEl.style.display = 'block'; }
-                else { msgEl.style.display = 'none'; }
-
-                const inputsEl = document.getElementById('modal-inputs');
-                if (showInputs) {
-                    inputsEl.style.display = 'flex';
-                    document.getElementById('modal-input-name').value = data.nome || '';
-                    document.getElementById('modal-input-num').value = data.num || '';
-                    currentBase64Image = data.img || '';
-                    document.getElementById('file-label-text').innerText = data.img ? "✓ Foto anexada (clique p/ trocar)" : "📁 Selecionar foto do computador";
-                } else {
-                    inputsEl.style.display = 'none';
-                }
-
-                btnDelete.style.display = isEdit ? 'block' : 'none';
-                modal.classList.add('active');
-
-                document.getElementById('modal-confirm').onclick = () => {
-                    modal.classList.remove('active');
-                    if (showInputs) {
-                        resolve({
-                            action: 'save',
-                            nome: document.getElementById('modal-input-name').value,
-                            num: document.getElementById('modal-input-num').value,
-                            img: currentBase64Image
-                        });
-                    } else { resolve({ action: 'confirm' }); }
-                };
-
-                btnDelete.onclick = () => { modal.classList.remove('active'); resolve({ action: 'delete' }); };
-                document.getElementById('modal-cancel').onclick = () => { modal.classList.remove('active'); resolve({ action: 'cancel' }); };
-            });
-        }
-
-        // --- BUSCA AUTOMÁTICA AO DIGITAR O NÚMERO ---
-        let teamRoster = [];
-        const teamSelect = document.getElementById('team-select');
-
-        function loadCurrentTeamRoster() {
-            onValue(ref(db, `elencos/${teamSelect.value}`), (snapshot) => {
-                teamRoster = snapshot.val() || [];
-                checkAutoSearch('in');
-                checkAutoSearch('out');
-            });
-        }
-
-        teamSelect.addEventListener('change', loadCurrentTeamRoster);
-        loadCurrentTeamRoster();
-
-        function checkAutoSearch(type) {
-            const inputEl = document.getElementById(`num-${type}`);
-            const previewEl = document.getElementById(`preview-${type}-name`);
-            const numVal = inputEl.value.trim();
-
-            if (!numVal) { previewEl.innerText = ''; return; }
-
-            const found = teamRoster.find(p => String(p.num) === String(numVal));
-            if (found && found.nome) {
-                previewEl.innerText = found.nome;
-            } else {
-                previewEl.innerText = '';
-            }
-        }
-
-        document.getElementById('num-in').addEventListener('input', () => checkAutoSearch('in'));
-        document.getElementById('num-out').addEventListener('input', () => checkAutoSearch('out'));
-
-        // --- TOAST ---
-        let toastTimeout;
-        const toastEl = document.getElementById('toast');
-        const btnManter = document.getElementById('toast-manter');
-
-        function showToast() {
-            toastEl.classList.add('show');
-            btnManter.innerText = "Manter fixo";
-            btnManter.classList.remove('active');
-            clearTimeout(toastTimeout);
-            toastTimeout = setTimeout(() => {
-                if (btnManter.innerText !== "Desativar") toastEl.classList.remove('show');
-            }, 3000);
-        }
-
-        btnManter.addEventListener('click', () => {
-            if (btnManter.innerText === "Manter fixo") {
-                btnManter.innerText = "Desativar";
-                btnManter.classList.add('active');
-                clearTimeout(toastTimeout);
-                update(ref(db, 'substituicao'), { manter: true });
-            } else {
-                toastEl.classList.remove('show');
-                update(ref(db, 'substituicao'), { hide: true, timestamp: Date.now() });
-            }
+        toggleRobo.addEventListener('change', (e) => {
+            update(ref(db, 'tv/controle'), { ativo: e.target.checked });
         });
 
-        // --- ABAS ---
-        document.getElementById('btn-tab-sub').addEventListener('click', (e) => switchTab('sub', e.target));
-        document.getElementById('btn-tab-testes').addEventListener('click', (e) => switchTab('testes', e.target)); // ADICIONE ESTA LINHA
+        btnForce.addEventListener('click', () => {
+            update(ref(db, 'tv/controle'), { forcarBusca: true });
+            btnForce.innerText = "Buscando...";
+            setTimeout(() => { btnForce.innerText = "Verificar Jogo Agora"; }, 2000);
+        });
+
+        // Puxar Histórico de Logs do Firebase
+        const logsQuery = query(ref(db, 'tv/logs'), limitToLast(15));
+        onValue(logsQuery, (snapshot) => {
+            logsArea.innerHTML = '';
+            snapshot.forEach((child) => {
+                const data = child.val();
+                const timeStr = new Date(data.timestamp).toLocaleTimeString('pt-BR');
+                const div = document.createElement('div');
+                div.className = `log-entry ${data.tipo}`;
+                div.innerHTML = `<span class="log-time">${timeStr}</span>${data.mensagem}`;
+                logsArea.insertBefore(div, logsArea.firstChild);
+            });
+        });
+
+        // ==========================================
+        // 2. FUNÇÕES DE INTERFACE (ABAS E TOAST)
+        // ==========================================
+        document.getElementById('btn-tab-testes').addEventListener('click', (e) => switchTab('testes', e.target));
         document.getElementById('btn-tab-jogadores').addEventListener('click', (e) => switchTab('jogadores', e.target));
-
-        function switchTab(tab, btn) {
-            document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
-            document.querySelectorAll('.toggle-btn').forEach(el => el.classList.remove('active'));
-            document.getElementById(`view-${tab}`).classList.add('active');
-            btn.classList.add('active');
+        
+        function switchTab(tab, btn) { 
+            document.querySelectorAll('.view').forEach(el => el.classList.remove('active')); 
+            document.querySelectorAll('.toggle-btn').forEach(el => el.classList.remove('active')); 
+            document.getElementById(`view-${tab}`).classList.add('active'); 
+            btn.classList.add('active'); 
         }
 
-        // --- DISPARAR SUBSTITUIÇÃO ---
-        document.getElementById('btn-send').addEventListener('click', async () => {
-            const team = teamSelect.value;
-            const numIn = document.getElementById('num-in').value.trim();
-            const numOut = document.getElementById('num-out').value.trim();
+        let toastTimeout;
+        function showToast(msg = "Enviado para a tela!") {
+            const toastEl = document.getElementById('toast');
+            document.getElementById('toast-text').innerText = msg;
+            toastEl.classList.add('show');
+            clearTimeout(toastTimeout);
+            toastTimeout = setTimeout(() => { toastEl.classList.remove('show'); }, 3000);
+        }
 
-            if (!numIn || !numOut) {
-                openModal({ title: "Atenção", message: "Preencha o número de quem sai e de quem entra!", showInputs: false });
-                return;
+        // ==========================================
+        // 3. TESTES MANUAIS (GOL, CARTÃO, PLACAR E SUB)
+        // ==========================================
+        window.abrirModalTeste = function (tipo) {
+            document.getElementById('modal-title').innerText = `Simular ${tipo.toUpperCase()}`;
+            
+            let htmlInputs = `
+                <select id="teste-isCruzeiro" class="modal-input" style="margin-bottom:10px;">
+                    <option value="true">Cruzeiro</option>
+                    <option value="false">Adversário</option>
+                </select>
+            `;
+
+            if(tipo === 'substituicao') {
+                htmlInputs += `
+                    <input type="text" id="teste-sai" class="modal-input" placeholder="Nome de quem SAI (Nº 00)">
+                    <input type="text" id="teste-entra" class="modal-input" placeholder="Nome de quem ENTRA (Nº 00)" style="margin-top:10px;">
+                `;
+            } else {
+                htmlInputs += `<input type="text" id="teste-jogador" class="modal-input" placeholder="Nome do Jogador e Nº">`;
+                if (tipo === 'cartao') {
+                    htmlInputs += `
+                        <select id="teste-tipoCartao" class="modal-input" style="margin-top:10px;">
+                            <option value="amarelo">Amarelo</option><option value="vermelho">Vermelho</option>
+                        </select>
+                    `;
+                }
             }
 
-            const playerIn = teamRoster.find(p => String(p.num) === String(numIn)) || { num: numIn };
-            const playerOut = teamRoster.find(p => String(p.num) === String(numOut)) || { num: numOut };
+            document.getElementById('modal-inputs').innerHTML = htmlInputs;
+            document.getElementById('custom-modal').classList.add('active');
 
-            const payload = {
-                team: team,
-                in: playerIn,
-                out: playerOut,
-                timestamp: Date.now(),
-                manter: false,
-                hide: false
+            document.getElementById('modal-confirm').onclick = async () => {
+                document.getElementById('custom-modal').classList.remove('active');
+                let isCruzeiro = document.getElementById('teste-isCruzeiro').value === "true";
+                
+                if (tipo === 'substituicao') {
+                    let payload = {
+                        team: isCruzeiro ? "Cruzeiro" : "Adversário",
+                        out: { nome: document.getElementById('teste-sai').value, num: "X" },
+                        in: { nome: document.getElementById('teste-entra').value, num: "Y" },
+                        timestamp: Date.now()
+                    };
+                    await set(ref(db, `substituicao`), payload);
+                } else {
+                    let payload = { isCruzeiro, timestamp: Date.now(), jogador: document.getElementById('teste-jogador').value };
+                    if (tipo === 'cartao') payload.tipo = document.getElementById('teste-tipoCartao').value;
+                    await set(ref(db, `tv/${tipo}`), payload);
+                }
+                showToast(`Animação de ${tipo.toUpperCase()} enviada!`);
             };
+        };
 
-            await set(ref(db, 'substituicao'), payload);
+        window.testarPlacar = async function(acao) {
+            let payload = { acao: acao, timestamp: Date.now() };
+            if(acao === 'acrescimo') {
+                payload.minutos = 5; // Adiciona +5 para teste
+            }
+            await set(ref(db, `tv/placar`), payload);
+            showToast(`Comando de placar (${acao}) enviado!`);
+        }
 
-            document.getElementById('num-in').value = '';
-            document.getElementById('num-out').value = '';
-            document.getElementById('preview-in-name').innerText = '';
-            document.getElementById('preview-out-name').innerText = '';
-            showToast();
-        });
+        document.getElementById('modal-cancel').onclick = () => document.getElementById('custom-modal').classList.remove('active');
 
-        // --- JOGADORES CRUD ---
-        const selectLeft = document.getElementById('select-team-left');
-        const selectRight = document.getElementById('select-team-right');
-
-        selectLeft.addEventListener('change', () => syncRoster('left'));
-        selectRight.addEventListener('change', () => syncRoster('right'));
-
+        // ==========================================
+        // 4. CRUD DE JOGADORES (Aba Jogadores Mantida)
+        // ==========================================
+        let currentBase64Image = "";
+        
+        document.getElementById('select-team-left').addEventListener('change', () => syncRoster('left'));
+        document.getElementById('select-team-right').addEventListener('change', () => syncRoster('right'));
         document.getElementById('btn-add-left').addEventListener('click', () => addPlayer('left'));
         document.getElementById('btn-add-right').addEventListener('click', () => addPlayer('right'));
 
@@ -883,100 +417,85 @@
             players.forEach((p, index) => {
                 const li = document.createElement('li');
                 li.className = 'player-item';
-
                 let imgHTML = p.img ? `<img src="${p.img}">` : '';
+                li.innerHTML = `<div class="player-avatar">${imgHTML}</div><div class="player-info"><span class="player-name">${p.nome || 'Sem nome'}</span><span class="player-num">${p.num}</span></div>`;
 
-                li.innerHTML = `
-                    <div class="player-avatar">${imgHTML}</div>
-                    <div class="player-info">
-                        <span class="player-name">${p.nome || 'Sem nome'}</span>
-                        <span class="player-num">${p.num}</span>
-                    </div>
-                `;
+                li.addEventListener('click', () => {
+                    document.getElementById('modal-title').innerText = "Editar Jogador";
+                    document.getElementById('modal-inputs').innerHTML = `
+                        <input type="text" id="modal-input-name" class="modal-input" value="${p.nome || ''}">
+                        <input type="number" id="modal-input-num" class="modal-input" value="${p.num || ''}">
+                        <label class="file-upload-label" for="modal-input-file">
+                            <span id="file-label-text">${p.img ? '✓ Foto anexada (clique para trocar)' : '📁 Selecionar foto'}</span>
+                            <input type="file" id="modal-input-file" accept="image/*" style="display: none;">
+                        </label>
+                    `;
+                    currentBase64Image = p.img || "";
+                    
+                    document.getElementById('modal-input-file').addEventListener('change', handleImageUpload);
+                    document.getElementById('modal-delete').style.display = 'block';
+                    document.getElementById('custom-modal').classList.add('active');
 
-                li.addEventListener('click', async () => {
-                    const result = await openModal({
-                        title: "Editar Jogador", showInputs: true, isEdit: true, data: p
-                    });
+                    document.getElementById('modal-confirm').onclick = () => {
+                        players[index] = { nome: document.getElementById('modal-input-name').value, num: document.getElementById('modal-input-num').value, img: currentBase64Image };
+                        set(ref(db, `elencos/${team}`), players);
+                        document.getElementById('custom-modal').classList.remove('active');
+                        document.getElementById('modal-delete').style.display = 'none';
+                    };
 
-                    if (result.action === 'save') {
-                        if (result.num) {
-                            players[index] = { nome: result.nome, num: result.num, img: result.img };
-                            set(ref(db, `elencos/${team}`), players);
-                        }
-                    } else if (result.action === 'delete') {
+                    document.getElementById('modal-delete').onclick = () => {
                         players.splice(index, 1);
                         set(ref(db, `elencos/${team}`), players);
-                    }
+                        document.getElementById('custom-modal').classList.remove('active');
+                        document.getElementById('modal-delete').style.display = 'none';
+                    };
                 });
-
                 listEl.appendChild(li);
             });
         }
 
         function addPlayer(side) {
             const team = document.getElementById(`select-team-${side}`).value;
-            openModal({ title: `Adicionar ao ${team}`, showInputs: true, isEdit: false })
-                .then(result => {
-                    if (result.action === 'save' && result.num) {
-                        onValue(ref(db, `elencos/${team}`), (snapshot) => {
-                            const current = snapshot.val() || [];
-                            current.push({ nome: result.nome, num: result.num, img: result.img });
-                            set(ref(db, `elencos/${team}`), current);
-                        }, { onlyOnce: true });
-                    }
-                });
-        }
-
-        // Lógica do Modal de Teste
-        window.abrirModalTeste = function (tipo) {
-            let inputsHTML = `
-        <select id="teste-isCruzeiro" class="modal-input" style="margin-bottom:10px;">
-            <option value="true">Cruzeiro</option>
-            <option value="false">Adversário</option>
-        </select>
-    `;
-
-            if (tipo === 'gol') {
-                inputsHTML += `<input type="text" id="teste-jogador" class="modal-input" placeholder="Nome do Jogador">`;
-            } else if (tipo === 'cartao') {
-                inputsHTML += `
-            <input type="text" id="teste-jogador" class="modal-input" placeholder="Nome do Jogador" style="margin-bottom:10px;">
-            <select id="teste-tipoCartao" class="modal-input">
-                <option value="amarelo">Cartão Amarelo</option>
-                <option value="vermelho">Cartão Vermelho</option>
-            </select>`;
-            } else if (tipo === 'acrescimo') {
-                inputsHTML += `<input type="number" id="teste-minutos" class="modal-input" placeholder="Minutos (ex: +5)">`;
-            }
-
-            // Usando o mesmo modal que já criamos
-            document.getElementById('modal-title').innerText = `Testar ${tipo.toUpperCase()}`;
-            document.getElementById('modal-inputs').innerHTML = inputsHTML;
-            document.getElementById('modal-inputs').style.display = 'flex';
+            document.getElementById('modal-title').innerText = `Adicionar ao ${team}`;
+            document.getElementById('modal-inputs').innerHTML = `
+                <input type="text" id="modal-input-name" class="modal-input" placeholder="Nome">
+                <input type="number" id="modal-input-num" class="modal-input" placeholder="Número">
+                <label class="file-upload-label" for="modal-input-file">
+                    <span id="file-label-text">📁 Selecionar foto</span>
+                    <input type="file" id="modal-input-file" accept="image/*" style="display: none;">
+                </label>
+            `;
+            currentBase64Image = "";
+            document.getElementById('modal-input-file').addEventListener('change', handleImageUpload);
+            document.getElementById('modal-delete').style.display = 'none';
             document.getElementById('custom-modal').classList.add('active');
 
-            document.getElementById('modal-confirm').onclick = async () => {
-                document.getElementById('custom-modal').classList.remove('active');
-
-                const isCruzeiro = document.getElementById('teste-isCruzeiro').value === "true";
-                let payload = { isCruzeiro, timestamp: Date.now() };
-
-                if (tipo === 'gol') payload.jogador = document.getElementById('teste-jogador').value;
-                if (tipo === 'cartao') {
-                    payload.jogador = document.getElementById('teste-jogador').value;
-                    payload.tipo = document.getElementById('teste-tipoCartao').value;
+            document.getElementById('modal-confirm').onclick = () => {
+                const num = document.getElementById('modal-input-num').value;
+                if(num) {
+                    onValue(ref(db, `elencos/${team}`), (snapshot) => {
+                        const current = snapshot.val() || [];
+                        current.push({ nome: document.getElementById('modal-input-name').value, num: num, img: currentBase64Image });
+                        set(ref(db, `elencos/${team}`), current);
+                    }, { onlyOnce: true });
                 }
-                if (tipo === 'acrescimo') payload.minutos = document.getElementById('teste-minutos').value;
-
-                // Dispara direto pro Firebase
-                await set(ref(db, `tv/${tipo}`), payload);
-                showToast();
+                document.getElementById('custom-modal').classList.remove('active');
             };
-        };
+        }
+
+        function handleImageUpload(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    currentBase64Image = event.target.result;
+                    document.getElementById('file-label-text').innerText = "✓ Foto selecionada";
+                };
+                reader.readAsDataURL(file);
+            }
+        }
 
         syncRoster('left'); syncRoster('right');
     </script>
 </body>
-
 </html>
