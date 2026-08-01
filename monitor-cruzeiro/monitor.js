@@ -10,13 +10,25 @@ let ultimosEventos = { gol: [], cartao: [], sub: [] };
 let ultimoAlvoId = '';
 
 async function atualizarFirebase(endpoint, payload) {
-    try { await fetch(`${FIREBASE_DB_URL}/${endpoint}.json`, { method: 'PUT', body: JSON.stringify({ ...payload, timestamp: Date.now() }) }); } catch (e) {}
+    try { 
+        await fetch(`${FIREBASE_DB_URL}/${endpoint}.json`, { 
+            method: 'PUT', 
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ...payload, timestamp: Date.now() }) 
+        }); 
+    } catch (e) {
+        console.error("Erro ao atualizar Firebase:", e);
+    }
 }
 
 async function registrarLog(mensagem, tipo = 'info') {
     try {
         console.log(`[LOG] ${mensagem}`);
-        await fetch(`${FIREBASE_DB_URL}/tv/logs.json`, { method: 'POST', body: JSON.stringify({ mensagem, tipo, timestamp: Date.now() }) });
+        await fetch(`${FIREBASE_DB_URL}/tv/logs.json`, { 
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ mensagem, tipo, timestamp: Date.now() }) 
+        });
     } catch (e) {}
 }
 
@@ -33,7 +45,6 @@ export async function buscarERodarJogo() {
     try {
         const config = await lerConfiguracaoAlvo();
 
-        // Se trocou de jogo, reseta os eventos registrados
         if (config.alvo !== ultimoAlvoId) {
             ultimosEventos = { gol: [], cartao: [], sub: [] };
             ultimoAlvoId = config.alvo;
@@ -45,7 +56,6 @@ export async function buscarERodarJogo() {
         const dd = String(date.getDate()).padStart(2, '0');
         const datesParam = `?dates=${yyyy}${mm}${dd}-${yyyy}1231`;
 
-        // USA A URL DA LIGA ESCOLHIDA OU BUSCA NAS DUAS
         let urlsParaBuscar = config.urlLiga ? [`${config.urlLiga}${datesParam}`] : LIGAS_DEFAULT.map(u => `${u}${datesParam}`);
 
         let todosEventos = [];
@@ -53,7 +63,12 @@ export async function buscarERodarJogo() {
             try {
                 const res = await fetch(url);
                 const data = await res.json();
-                if (data.events) todosEventos.push(...data.events);
+                if (data.events) {
+                    // Guarda o slug da liga junto com o evento (ex: bra.copa_do_brazil)
+                    const leagueSlug = data.leagues?.[0]?.slug || 'bra.1';
+                    data.events.forEach(e => e.leagueSlug = leagueSlug);
+                    todosEventos.push(...data.events);
+                }
             } catch (err) {}
         }
 
@@ -63,8 +78,7 @@ export async function buscarERodarJogo() {
             if (config.tipo === 'id' && evento.id === config.alvo) {
                 jogoEncontrado = evento;
                 break;
-            }
-            else if (config.tipo === 'time') {
+            } else if (config.tipo === 'time') {
                 const competidores = evento.competitions[0].competitors;
                 const nomes = competidores.map(c => c.team.name.toLowerCase());
                 if (nomes.some(n => n.includes(config.alvo.toLowerCase()))) {
@@ -75,7 +89,7 @@ export async function buscarERodarJogo() {
         }
 
         if (!jogoEncontrado) {
-            atualizarFirebase('tv/placar', { status: 'off' });
+            await atualizarFirebase('tv/placar', { status: 'off' });
             return 10000; 
         }
 
@@ -90,18 +104,21 @@ export async function buscarERodarJogo() {
             const relogio = clockParts[0].replace(/'/g, ''); 
             const acrescimo = clockParts[1] ? clockParts[1].replace(/'/g, '') : null;
 
+            // 1. Atualização do Placar
             await atualizarFirebase('tv/placar', {
                 status: 'in',
                 homeAbbr: timeCasa.team.abbreviation,
                 awayAbbr: timeFora.team.abbreviation,
-                homeScore: timeCasa.score,
-                awayScore: timeFora.score,
+                homeScore: parseInt(timeCasa.score) || 0,
+                awayScore: parseInt(timeFora.score) || 0,
                 clock: relogio,
                 added: acrescimo
             });
 
-            // GOLS E CARTÕES (SUMMARY)
-            const summaryApiUrl = `https://site.api.espn.com/apis/site/v2/sports/soccer/bra.1/summary?event=${jogoEncontrado.id}`;
+            // 2. Busca de Eventos (Gols / Cartões) com o Slug correto da liga
+            const leagueSlug = jogoEncontrado.leagueSlug || 'bra.1';
+            const summaryApiUrl = `https://site.api.espn.com/apis/site/v2/sports/soccer/${leagueSlug}/summary?event=${jogoEncontrado.id}`;
+            
             try {
                 const summaryRes = await fetch(summaryApiUrl);
                 const summary = await summaryRes.json();
@@ -126,16 +143,19 @@ export async function buscarERodarJogo() {
                         ultimosEventos.cartao.push(evento.id);
                     }
                 });
-            } catch (err) {}
+            } catch (err) {
+                console.error("Erro ao carregar resumo dos eventos do jogo:", err);
+            }
 
-            return 10000; // Checa a cada 10 segundos
+            return 10000; // Checa a cada 10s
         } else {
-            atualizarFirebase('tv/placar', { status: 'off' });
+            await atualizarFirebase('tv/placar', { status: 'off' });
             return 30000;
         }
 
     } catch (e) {
-        atualizarFirebase('tv/placar', { status: 'erro' });
+        console.error("Erro geral no loop principal:", e);
+        await atualizarFirebase('tv/placar', { status: 'erro' });
         return 30000;
     }
 }
