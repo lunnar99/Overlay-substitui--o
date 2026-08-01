@@ -6,7 +6,9 @@ const LIGAS_DEFAULT = [
 ];
 
 const FIREBASE_DB_URL = 'https://termosm-6fed5-default-rtdb.firebaseio.com';
-let ultimosEventos = { cartao: [], gol: [] };
+
+// Conjunto (Set) de IDs processados para evitar duplicações
+const eventosProcessados = new Set();
 let ultimoAlvoId = '';
 
 async function atualizarFirebase(endpoint, payload) {
@@ -45,8 +47,9 @@ export async function buscarERodarJogo() {
     try {
         const config = await lerConfiguracaoAlvo();
 
+        // Se trocou o jogo alvo, limpa os eventos antigos da memória
         if (config.alvo !== ultimoAlvoId) {
-            ultimosEventos = { cartao: [], gol: [] };
+            eventosProcessados.clear();
             ultimoAlvoId = config.alvo;
         }
 
@@ -115,33 +118,37 @@ export async function buscarERodarJogo() {
                 added: isHalftime ? null : acrescimo
             });
 
-            // LEITURA DOS DETALHES (CARTÕES E GOLS)
-            const detalhesEventos = comp.details || [];
-            
-            detalhesEventos.forEach((det, idx) => {
-                const eventoId = `${jogoEncontrado.id}_${idx}_${det.clock?.value}`;
-                if (ultimosEventos.cartao.includes(eventoId)) return;
+            // PROCESSAMENTO ÚNICO DE EVENTOS (CARTÕES/GOLS DO SUMMARY)
+            const summaryApiUrl = `https://site.api.espn.com/apis/site/v2/sports/soccer/bra.1/summary?event=${jogoEncontrado.id}`;
+            try {
+                const summaryRes = await fetch(summaryApiUrl);
+                const summary = await summaryRes.json();
 
-                const tipoTexto = det.type?.text?.toLowerCase() || '';
-                const atleta = det.athletesInvolved?.[0];
-                const nomeJogador = atleta?.displayName || 'Jogador';
-                const teamID = det.team?.id;
-                const siglaTime = (teamID === timeCasa.team.id) ? timeCasa.team.abbreviation : timeFora.team.abbreviation;
-
-                if (tipoTexto.includes('card')) {
-                    const corCartao = det.redCard ? 'vermelho' : 'amarelo';
+                (summary.keyEvents || []).forEach(evento => {
+                    const idUnico = `${jogoEncontrado.id}_${evento.id}`;
                     
-                    atualizarFirebase('tv/cartao', {
-                        teamAbbr: siglaTime,
-                        jogador: nomeJogador,
-                        numero: atleta?.jersey || '--',
-                        tipo: corCartao
-                    });
+                    // Se já foi enviado para o OBS, ignora
+                    if (eventosProcessados.has(idUnico)) return;
 
-                    registrarLog(`🟨 Cartão ${corCartao.toUpperCase()}: ${nomeJogador} (${siglaTime}) - ${det.clock?.displayValue}`, 'warning');
-                    ultimosEventos.cartao.push(eventoId);
-                }
-            });
+                    const jogador = evento.participants?.[0]?.athlete?.displayName || 'Jogador';
+                    const numero = evento.participants?.[0]?.athlete?.jersey || '--';
+                    const teamID = evento.team?.id;
+                    const siglaTime = (teamID === timeCasa.team.id) ? timeCasa.team.abbreviation : timeFora.team.abbreviation;
+
+                    if (evento.type?.id === '1') { 
+                        atualizarFirebase('tv/gol', { teamAbbr: siglaTime, jogador, numero });
+                        registrarLog(`⚽ GOL! ${jogador} (${siglaTime})`, 'success');
+                        eventosProcessados.add(idUnico);
+                    }
+                    else if (evento.type?.text?.toLowerCase().includes('card')) { 
+                        const corCartao = evento.type.text.toLowerCase().includes('red') ? 'vermelho' : 'amarelo';
+                        
+                        atualizarFirebase('tv/cartao', { teamAbbr: siglaTime, jogador, numero, tipo: corCartao });
+                        registrarLog(`🟨 Cartão ${corCartao.toUpperCase()}: ${jogador} (${siglaTime})`, 'warning');
+                        eventosProcessados.add(idUnico);
+                    }
+                });
+            } catch (err) {}
 
             return 10000;
         } else {
