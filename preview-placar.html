@@ -8,57 +8,63 @@
         .scoreboard-wrapper {
             display: flex; align-items: center; background: rgba(10, 10, 20, 0.95);
             border: 2px solid rgba(255, 255, 255, 0.2); border-radius: 12px;
-            padding: 8px; box-shadow: 0 10px 30px rgba(0,0,0,0.6); color: white; gap: 15px;
+            padding: 8px 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.6); color: white; gap: 15px;
         }
 
-        /* Container do Jogo (Siglas e Gols) */
         .match-info {
-            display: flex; align-items: center; gap: 10px; font-size: 2rem;
+            display: flex; align-items: center; gap: 12px; font-size: 2rem;
             background: #111; padding: 5px 20px; border-radius: 8px;
         }
+
+        /* Container do Time com Traço de Cartão */
+        .team-box {
+            display: flex; flex-direction: column; align-items: center; position: relative; padding-top: 6px;
+        }
+        .card-bar {
+            position: absolute; top: 0; width: 100%; height: 4px; border-radius: 2px; display: none;
+        }
+        .card-bar.amarelo { background: #f59e0b; display: block; box-shadow: 0 0 8px #f59e0b; }
+        .card-bar.vermelho { background: #ef4444; display: block; box-shadow: 0 0 8px #ef4444; }
+
         .team-abbr { font-weight: 900; letter-spacing: 2px; text-transform: uppercase; }
         .score { color: #f59e0b; font-weight: 900; }
         .divider { color: #555; font-size: 1.5rem; }
-        
-        .team-cruzeiro { color: #3b82f6; } /* Destaque azul se for Cruzeiro */
+        .team-cruzeiro { color: #3b82f6; }
 
-        /* Relógio */
-        .clock-info { display: flex; align-items: center; font-size: 2.2rem; font-weight: 900; letter-spacing: 1px; min-width: 110px; justify-content: center; }
-
-        /* Acréscimos (+5) */
-        .added-time {
-            background: #eab308; color: #000; font-size: 1.8rem; font-weight: 900;
-            padding: 2px 12px; border-radius: 6px; box-shadow: 0 0 15px rgba(234, 179, 8, 0.4);
-            display: none; transform: scale(0.8); transition: 0.3s;
+        /* Timer MM:SS e Acréscimo */
+        .clock-container { display: flex; align-items: center; gap: 8px; font-size: 2rem; font-weight: 900; }
+        .added-timer {
+            background: #eab308; color: #000; font-size: 1.3rem; font-weight: 900;
+            padding: 2px 8px; border-radius: 6px; display: none;
         }
-        .added-time.show { display: block; transform: scale(1); }
+        .added-timer.show { display: inline-block; }
 
-        /* Status (OFF / ERRO) */
-        .status-msg {
-            font-size: 2rem; font-weight: 900; color: #888; letter-spacing: 3px; padding: 5px 30px;
-        }
+        .status-msg { font-size: 2rem; font-weight: 900; color: #888; letter-spacing: 3px; padding: 5px 30px; }
     </style>
 </head>
 <body>
 
     <div class="scoreboard-wrapper" id="board">
-        <!-- Modo Padrão: OFF -->
         <div class="status-msg" id="status-display">OFF</div>
 
-        <!-- Modo Jogo -->
         <div class="match-info" id="match-display" style="display: none;">
-            <span class="team-abbr" id="home-team">CASA</span>
+            <div class="team-box">
+                <div class="card-bar" id="card-home"></div>
+                <span class="team-abbr" id="home-team">CASA</span>
+            </div>
             <span class="score" id="home-score">0</span>
             <span class="divider">x</span>
             <span class="score" id="away-score">0</span>
-            <span class="team-abbr" id="away-team">FORA</span>
+            <div class="team-box">
+                <div class="card-bar" id="card-away"></div>
+                <span class="team-abbr" id="away-team">FORA</span>
+            </div>
         </div>
 
-        <div class="clock-info" id="clock-display" style="display: none;">
-            <span id="timer">00:00</span>
+        <div class="clock-container" id="clock-display" style="display: none;">
+            <span id="timer-main">00:00</span>
+            <span class="added-timer" id="timer-added">+00:00</span>
         </div>
-        
-        <div class="added-time" id="added-time">+0</div>
     </div>
 
     <script type="module">
@@ -75,18 +81,57 @@
         const awayTeam = document.getElementById('away-team');
         const homeScore = document.getElementById('home-score');
         const awayScore = document.getElementById('away-score');
-        const timer = document.getElementById('timer');
-        const addedBox = document.getElementById('added-time');
+        const timerMain = document.getElementById('timer-main');
+        const timerAdded = document.getElementById('timer-added');
+        const cardHome = document.getElementById('card-home');
+        const cardAway = document.getElementById('card-away');
 
-        let relogioInterval = null;
+        let mainSeconds = 0;
+        let addedSeconds = 0;
+        let timerInterval = null;
+        let currentPeriod = 1;
 
-        function colorirCruzeiro(el, sigla) {
-            if(sigla === 'CRU') el.classList.add('team-cruzeiro');
-            else el.classList.remove('team-cruzeiro');
+        function formatTime(totalSec) {
+            const m = String(Math.floor(totalSec / 60)).padStart(2, '0');
+            const s = String(totalSec % 60).padStart(2, '0');
+            return `${m}:${s}`;
+        }
+
+        function startLocalTimer() {
+            if (timerInterval) return;
+            timerInterval = setInterval(() => {
+                const maxSec = 45 * 60; // 45 min por tempo
+                if (mainSeconds < maxSec) {
+                    mainSeconds++;
+                    timerMain.innerText = formatTime(mainSeconds);
+                } else {
+                    // Trava o principal aos 45 min e incrementa o acréscimo
+                    timerMain.innerText = formatTime(maxSec);
+                    addedSeconds++;
+                    timerAdded.innerText = `+${formatTime(addedSeconds)}`;
+                    timerAdded.classList.add('show');
+                }
+            }, 1000);
+        }
+
+        function syncTimerWithAPI(apiMinutes, period) {
+            if (period !== currentPeriod) {
+                currentPeriod = period;
+                mainSeconds = 0; // Reseta para 00:00 no 2º tempo
+                addedSeconds = 0;
+                timerAdded.classList.remove('show');
+            }
+
+            const apiSec = apiMinutes * 60;
+            // Alinha o timer local se a divergência for maior que 10s
+            if (Math.abs(mainSeconds - apiSec) > 10 && apiSec <= 45 * 60) {
+                mainSeconds = apiSec;
+            }
+            startLocalTimer();
         }
 
         function setModo(modo) {
-            if(modo === 'in' || modo === 'start') {
+            if(modo === 'in' || modo === 'start' || modo === 'halftime') {
                 statusDisplay.style.display = 'none';
                 matchDisplay.style.display = 'flex';
                 clockDisplay.style.display = 'flex';
@@ -94,42 +139,47 @@
                 statusDisplay.style.display = 'block';
                 matchDisplay.style.display = 'none';
                 clockDisplay.style.display = 'none';
-                addedBox.classList.remove('show');
                 statusDisplay.innerText = modo.toUpperCase();
-                statusDisplay.style.color = modo === 'erro' ? '#ef4444' : '#888';
-                clearInterval(relogioInterval);
+                clearInterval(timerInterval);
+                timerInterval = null;
             }
         }
 
+        // LEITURA DO FIREBASE
         onValue(ref(db, 'tv/placar'), (snap) => {
             const data = snap.val();
             if (!data) return;
 
             if (data.status === 'off' || data.acao === 'reset') {
                 setModo('off');
-            } else if (data.status === 'erro') {
-                setModo('erro');
-            } else if (data.status === 'in' || data.acao === 'start') {
-                setModo('in');
+            } else {
+                setModo(data.status);
                 
                 homeTeam.innerText = data.homeAbbr || "CASA";
                 awayTeam.innerText = data.awayAbbr || "FORA";
-                colorirCruzeiro(homeTeam, data.homeAbbr);
-                colorirCruzeiro(awayTeam, data.awayAbbr);
-                
                 homeScore.innerText = data.homeScore ?? 0;
                 awayScore.innerText = data.awayScore ?? 0;
-                
-                // Se o robô enviar o relógio textualmente (Ex: 45:12) atualizamos
-                if(data.clock) timer.innerText = data.clock;
 
-                if (data.added || data.acao === 'acrescimo') {
-                    addedBox.innerText = `+${data.added || 5}`;
-                    addedBox.classList.add('show');
-                } else {
-                    addedBox.classList.remove('show');
+                if (data.status === 'halftime' || data.clock === 'INT') {
+                    clearInterval(timerInterval);
+                    timerInterval = null;
+                    timerMain.innerText = "INTERVALO";
+                    timerAdded.classList.remove('show');
+                    return;
                 }
+
+                const apiMin = parseInt(String(data.clock).replace(/\D/g, '')) || 0;
+                syncTimerWithAPI(apiMin, data.period || 1);
             }
+        });
+
+        // LEITURA DE CARTÕES PARA OS TRAÇOS VISUAIS
+        onValue(ref(db, 'tv/cartao'), (snap) => {
+            const data = snap.val();
+            if (!data) return;
+            
+            const targetBar = (data.teamAbbr === homeTeam.innerText) ? cardHome : cardAway;
+            targetBar.className = `card-bar ${data.tipo}`;
         });
     </script>
 </body>
