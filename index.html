@@ -3,258 +3,169 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Painel de Broadcast Profissional</title>
+    <title>Dashboard Broadcast | Live Monitor</title>
     <style>
         :root {
-            --bg-fallback: #0b2fe3;
-            --card-header: #201e8a;
-            --text-dark: #201e8a;
-            --text-light: #ffffff;
-            --in-color: #00b050;
-            --out-color: #ff0000;
-            --glass-bg: rgba(255, 255, 255, 0.85);
-            --glass-border: rgba(255, 255, 255, 0.5);
-            --modal-bg: rgba(0, 0, 0, 0.6);
+            --bg-color: #f3f4f6;
+            --primary: #1e3a8a;
+            --secondary: #3b82f6;
+            --success: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --dark: #111827;
+            --white: #ffffff;
+            --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', system-ui, sans-serif; }
 
-        body {
-            background: var(--bg-fallback) url('BG.png') center/cover no-repeat;
-            min-height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: stretch;
-            padding: 30px;
-            color: var(--text-dark);
-            overflow: hidden;
-            gap: 30px;
-        }
+        body { background-color: var(--bg-color); color: var(--dark); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 
-        /* LADO ESQUERDO: Painel de Controle */
-        .left-panel {
-            flex: 1;
-            max-width: 700px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-
-        .toggle-container {
-            background: #fff; border-radius: 50px; display: flex; padding: 5px;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.15); margin-bottom: 25px; width: fit-content;
-        }
-
-        .toggle-btn {
-            background: transparent; border: none; padding: 10px 20px; font-size: 0.95rem;
-            font-weight: 600; color: var(--text-dark); border-radius: 50px; cursor: pointer; transition: 0.3s;
-        }
-        .toggle-btn.active { background: var(--card-header); color: var(--text-light); }
-
-        .content-area { width: 100%; display: flex; justify-content: center; }
-        .view { display: none; width: 100%; justify-content: center; gap: 20px; animation: fadeIn 0.3s ease; }
-        .view.active { display: flex; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-
-        /* Estilização Geral dos Cards */
-        .card-sub, .card-team {
-            background: #fff; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-        }
-        .card-sub { padding: 30px; display: flex; flex-direction: column; gap: 15px; width: 100%; max-width: 420px; }
-        .card-team { width: 100%; max-width: 320px; height: 500px; display: flex; flex-direction: column; overflow: hidden;}
+        /* Header */
+        header { background: var(--primary); color: var(--white); padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; box-shadow: var(--card-shadow); z-index: 10; }
+        .header-title { font-size: 1.5rem; font-weight: 800; letter-spacing: 1px; }
         
-        .custom-select {
-            width: 100%; padding: 15px; border: 2px solid var(--text-dark); border-radius: 15px;
-            font-size: 1rem; color: var(--text-dark); outline: none; font-weight: 600;
-        }
-        
-        .btn-enviar { background: var(--card-header); color: #fff; border: none; padding: 12px; border-radius: 15px; font-size: 1rem; font-weight: 800; cursor: pointer; transition: 0.2s; text-transform: uppercase;}
-        .btn-enviar:hover { filter: brightness(1.1); transform: scale(1.02); }
-        
-        .team-header { background: var(--card-header); padding: 15px; display: flex; justify-content: space-between; align-items: center; }
-        .team-header select { width: 80%; background: rgba(255,255,255,0.1); color: white; border: none; padding: 5px; border-radius: 10px; font-size: 1rem; font-weight: 600; outline: none; }
-        .team-header select option { color: black; }
-        .btn-add { background: transparent; color: white; border: none; font-size: 1.8rem; cursor: pointer; }
-        
-        .player-list { list-style: none; padding: 10px; overflow-y: auto; flex: 1; }
-        .player-item { display: flex; align-items: center; padding: 10px; border-bottom: 1px solid #eaeaea; cursor: pointer; }
-        .player-avatar { width: 35px; height: 35px; border-radius: 50%; background: #eee; margin-right: 15px; overflow: hidden; display: flex; justify-content: center; align-items: center;}
-        .player-avatar img { width: 100%; height: 100%; object-fit: cover; }
-        .player-info { flex: 1; display: flex; flex-direction: column; }
-        .player-name { font-weight: 600; font-size: 0.9rem; } .player-num { font-weight: 900; font-size: 1.1rem; }
+        .status-badge { background: rgba(255,255,255,0.2); padding: 5px 15px; border-radius: 50px; font-size: 0.9rem; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+        .status-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--success); box-shadow: 0 0 10px var(--success); }
 
-        /* LADO DIREITO: LOGS E CONTROLE DO ROBÔ (GLASSMORPHISM) */
-        .right-panel {
-            width: 380px;
-            background: var(--glass-bg);
-            backdrop-filter: blur(15px);
-            -webkit-backdrop-filter: blur(15px);
-            border: 1px solid var(--glass-border);
-            border-radius: 25px;
-            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-        }
+        /* Main Layout */
+        .dashboard-container { display: flex; flex: 1; padding: 20px; gap: 20px; overflow: hidden; }
 
-        .robot-header {
-            background: rgba(32, 30, 138, 0.9);
-            color: white; padding: 20px;
-            display: flex; flex-direction: column; gap: 15px;
-        }
-        .robot-title { font-size: 1.2rem; font-weight: 800; display: flex; align-items: center; justify-content: space-between; }
+        /* Coluna Esquerda: Ações e Testes */
+        .panel-left { flex: 1; max-width: 400px; display: flex; flex-direction: column; gap: 20px; overflow-y: auto; padding-right: 10px; }
         
-        .switch { position: relative; display: inline-block; width: 50px; height: 26px; }
-        .switch input { opacity: 0; width: 0; height: 0; }
-        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 34px; }
-        .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; }
-        input:checked + .slider { background-color: var(--in-color); }
-        input:checked + .slider:before { transform: translateX(24px); }
+        .card { background: var(--white); border-radius: 12px; padding: 20px; box-shadow: var(--card-shadow); }
+        .card-title { font-size: 1.1rem; font-weight: 700; color: var(--primary); margin-bottom: 15px; border-bottom: 2px solid #f3f4f6; padding-bottom: 10px; }
 
-        .btn-force {
-            background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.5);
-            color: white; padding: 10px; border-radius: 10px; font-weight: 600; cursor: pointer; transition: 0.2s;
-        }
-        .btn-force:hover { background: white; color: var(--card-header); }
-
-        .logs-container {
-            flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px;
-        }
-        .logs-container::-webkit-scrollbar { width: 5px; }
-        .logs-container::-webkit-scrollbar-thumb { background: #b0b0b0; border-radius: 10px; }
-
-        .log-entry {
-            background: white; padding: 12px 15px; border-radius: 12px;
-            font-size: 0.85rem; font-weight: 600; box-shadow: 0 4px 10px rgba(0,0,0,0.05);
-            animation: slideIn 0.3s ease-out; border-left: 4px solid #ccc;
-        }
-        .log-entry.info { border-left-color: #3b82f6; }
-        .log-entry.success { border-left-color: var(--in-color); }
-        .log-entry.warning { border-left-color: #f59e0b; }
+        .btn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .btn-full { grid-column: span 2; }
         
-        .log-time { font-size: 0.7rem; color: #888; margin-bottom: 3px; display: block; }
+        .btn { padding: 12px; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; transition: 0.2s; color: var(--white); text-transform: uppercase; font-size: 0.9rem; }
+        .btn:hover { filter: brightness(1.1); transform: translateY(-1px); }
+        .btn-blue { background: var(--secondary); }
+        .btn-green { background: var(--success); }
+        .btn-red { background: var(--danger); }
+        .btn-yellow { background: var(--warning); color: var(--dark); }
+
+        /* Coluna Direita: Feedback Visual e Logs */
+        .panel-right { flex: 2; display: flex; flex-direction: column; gap: 20px; overflow: hidden; }
+
+        .visual-feedback { background: var(--dark); border-radius: 12px; padding: 20px; color: var(--white); display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 180px; position: relative; box-shadow: inset 0 0 20px rgba(0,0,0,0.5); }
+        .visual-title { position: absolute; top: 15px; left: 15px; font-size: 0.8rem; color: #888; font-weight: bold; text-transform: uppercase; }
+        
+        /* Espelho do Placar */
+        .mirror-placar { display: flex; align-items: center; gap: 20px; font-size: 2.5rem; font-weight: 900; font-family: 'Arial Black', sans-serif; }
+        .mirror-team { background: #333; padding: 10px 20px; border-radius: 8px; }
+        .mirror-score { color: var(--warning); }
+        .mirror-time { font-size: 1.5rem; background: #222; padding: 5px 15px; border-radius: 5px; color: #aaa; }
+
+        .logs-card { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+        .logs-container { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding: 5px; }
+        .log-item { background: #f9fafb; border-left: 4px solid #ccc; padding: 12px; border-radius: 6px; font-size: 0.9rem; font-weight: 600; animation: slideIn 0.3s ease-out; }
+        .log-item.info { border-left-color: var(--secondary); }
+        .log-item.success { border-left-color: var(--success); }
+        .log-item.warning { border-left-color: var(--warning); }
+        .log-time { font-size: 0.75rem; color: #6b7280; display: block; margin-bottom: 4px; }
+
+        /* Modal Base */
+        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); display: none; justify-content: center; align-items: center; z-index: 100; backdrop-filter: blur(3px); }
+        .modal-overlay.active { display: flex; }
+        .modal-content { background: var(--white); width: 100%; max-width: 400px; border-radius: 12px; padding: 25px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); }
+        .modal-header { font-size: 1.2rem; font-weight: 800; color: var(--primary); margin-bottom: 15px; }
+        .modal-input { width: 100%; padding: 12px; border: 1px solid #d1d5db; border-radius: 8px; margin-bottom: 10px; font-size: 1rem; outline: none; }
+        .modal-input:focus { border-color: var(--secondary); }
+        .modal-actions { display: flex; gap: 10px; margin-top: 15px; }
 
         @keyframes slideIn { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
-
-        /* Modal / Toast */
-        .toast-container { position: fixed; bottom: -100px; left: 50%; transform: translateX(-50%); background: #fff; padding: 15px 25px; border-radius: 50px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); display: flex; align-items: center; gap: 20px; transition: bottom 0.4s; z-index: 900;}
-        .toast-container.show { bottom: 40px; }
-        .toast-msg { font-weight: 700; color: var(--text-dark); }
-        .toast-btn { background: var(--text-dark); color: white; border: none; padding: 8px 20px; border-radius: 50px; font-weight: bold; cursor: pointer; transition: 0.2s; } .toast-btn.active { background: var(--out-color); }
-        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--modal-bg); display: none; justify-content: center; align-items: center; z-index: 1000;}
-        .modal-overlay.active { display: flex; } .modal-card { background: white; width: 360px; padding: 30px; border-radius: 20px; display: flex; flex-direction: column; gap: 15px;}
-        .modal-input { width: 100%; padding: 12px 15px; border: 1px solid #ccc; border-radius: 10px; font-size: 1rem; outline: none;}
-        .modal-actions { display: flex; gap: 8px; margin-top: 10px; } .modal-btn { flex: 1; padding: 12px; border: none; border-radius: 10px; font-weight: bold; cursor: pointer;}
-        .btn-confirm { background: var(--card-header); color: white; } .btn-cancel { background: #f1f1f1; color: #333; } .btn-delete { background: var(--out-color); color: white; display: none; }
         
-        .file-upload-label { display: block; text-align: center; padding: 10px; border: 1px dashed #aaa; border-radius: 10px; cursor: pointer; font-size: 0.85rem; color: #555; background: #f9f9f9; }
-        
-        .divider { border-bottom: 1px solid #eee; margin: 10px 0; }
+        /* Toast */
+        .toast { position: fixed; bottom: -60px; left: 50%; transform: translateX(-50%); background: var(--dark); color: white; padding: 12px 25px; border-radius: 50px; font-weight: bold; transition: bottom 0.3s; z-index: 1000; }
+        .toast.show { bottom: 30px; }
     </style>
 </head>
 <body>
 
-    <!-- LADO ESQUERDO: SISTEMA DE OPERAÇÃO -->
-    <div class="left-panel">
-        <div class="toggle-container">
-            <!-- A ABA DE SUBSTITUIÇÃO FOI OCULTADA POIS AGORA É AUTOMÁTICO -->
-            <!-- <button class="toggle-btn" id="btn-tab-sub">Substituição</button> -->
+    <header>
+        <div class="header-title">OVERLAY BROADCAST UI</div>
+        <div class="status-badge" id="status-badge">
+            <div class="status-dot"></div> Robô Ativo
+        </div>
+    </header>
+
+    <div class="dashboard-container">
+        <!-- PAINEL ESQUERDO: CONTROLES -->
+        <div class="panel-left">
             
-            <button class="toggle-btn active" id="btn-tab-testes">Testes TV</button>
-            <button class="toggle-btn" id="btn-tab-jogadores">Jogadores</button>
+            <div class="card">
+                <div class="card-title">⚽ Forçar Gráficos (Testes)</div>
+                <div class="btn-grid">
+                    <button class="btn btn-blue btn-full" onclick="abrirModal('gol')">Simular Gol</button>
+                    <button class="btn btn-yellow" onclick="abrirModal('cartao')">Cartão</button>
+                    <button class="btn btn-green" onclick="abrirModal('substituicao')">Substituição</button>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">⏱ Controle do Placar</div>
+                <div class="btn-grid">
+                    <button class="btn btn-blue" onclick="enviarComandoPlacar('start')">Iniciar Tempo</button>
+                    <button class="btn btn-red" onclick="enviarComandoPlacar('reset')">Zerar Placar</button>
+                    <button class="btn btn-green btn-full" onclick="abrirModal('acrescimo')">Inserir Acréscimo</button>
+                    <button class="btn btn-yellow btn-full" onclick="enviarComandoPlacar('off')">Forçar Status "OFF"</button>
+                </div>
+            </div>
+
         </div>
 
-        <div class="content-area">
+        <!-- PAINEL DIREITO: FEEDBACK E LOGS -->
+        <div class="panel-right">
             
-            <!-- Aba 1: Substituição (OCULTA) -->
-            <!--
-            <div id="view-sub" class="view">
-                <div class="card-sub">
-                    ... HTML de substituição comentado ...
+            <!-- Espelho do OBS -->
+            <div class="visual-feedback">
+                <div class="visual-title">🔴 Feedback Visual (TV)</div>
+                <div class="mirror-placar" id="mirror-placar">
+                    <span class="mirror-team" id="mirror-home">OFF</span>
+                    <span class="mirror-score" id="mirror-score-home">-</span>
+                    <span>x</span>
+                    <span class="mirror-score" id="mirror-score-away">-</span>
+                    <span class="mirror-team" id="mirror-away">OFF</span>
                 </div>
+                <div class="mirror-time" style="margin-top: 15px;" id="mirror-time">00:00</div>
             </div>
-            -->
 
-            <!-- Aba 2: Testes (Ativa por padrão) -->
-            <div id="view-testes" class="view active">
-                <div class="card-sub" style="align-items: center; text-align: center;">
-                    <h3 style="color: var(--card-header);">Simular Gráficos na TV</h3>
-                    
-                    <button class="btn-enviar" onclick="abrirModalTeste('gol')" style="width: 100%; background: #3b82f6;">Simular GOL</button>
-                    <button class="btn-enviar" onclick="abrirModalTeste('cartao')" style="width: 100%; background: #eab308; color: black;">Simular CARTÃO</button>
-                    <button class="btn-enviar" onclick="abrirModalTeste('substituicao')" style="width: 100%; background: #10b981;">Simular SUBSTITUIÇÃO</button>
-                    
-                    <div class="divider" style="width: 100%;"></div>
-                    <h3 style="color: var(--card-header);">Temporizador / Placar</h3>
-                    
-                    <div style="display: flex; gap: 10px; width: 100%;">
-                        <button class="btn-enviar" onclick="testarPlacar('start')" style="flex: 1; background: #22c55e;">▶ Iniciar</button>
-                        <button class="btn-enviar" onclick="testarPlacar('reset')" style="flex: 1; background: #ef4444;">⏹ Zerar</button>
-                    </div>
-                    <button class="btn-enviar" onclick="testarPlacar('acrescimo')" style="width: 100%; background: #8b5cf6;">+ Adicionar Acréscimo (+5)</button>
+            <!-- Terminal de Logs -->
+            <div class="card logs-card">
+                <div class="card-title" style="display: flex; justify-content: space-between;">
+                    <span>Histórico do Sistema</span>
+                    <button class="btn btn-blue" style="padding: 5px 15px;" id="btn-force-fetch">Forçar Leitura ESPN</button>
+                </div>
+                <div class="logs-container" id="logs-area">
+                    <!-- Logs entram aqui -->
                 </div>
             </div>
 
-            <!-- Aba 3: Jogadores -->
-            <div id="view-jogadores" class="view">
-                <div class="card-team">
-                    <div class="team-header">
-                        <select id="select-team-left"><option value="Cruzeiro">Cruzeiro</option><option value="Flamengo">Flamengo</option></select>
-                        <button class="btn-add" id="btn-add-left">+</button>
-                    </div>
-                    <ul class="player-list" id="list-left"></ul>
-                </div>
-                <div class="card-team">
-                    <div class="team-header">
-                        <select id="select-team-right"><option value="Flamengo" selected>Flamengo</option><option value="Cruzeiro">Cruzeiro</option></select>
-                        <button class="btn-add" id="btn-add-right">+</button>
-                    </div>
-                    <ul class="player-list" id="list-right"></ul>
-                </div>
-            </div>
         </div>
     </div>
 
-    <!-- LADO DIREITO: LOGS E ROBÔ DA ESPN -->
-    <div class="right-panel">
-        <div class="robot-header">
-            <div class="robot-title">
-                Monitor Automático
-                <label class="switch">
-                    <input type="checkbox" id="toggle-robo" checked>
-                    <span class="slider"></span>
-                </label>
-            </div>
-            <button class="btn-force" id="btn-force-fetch">Verificar Jogo Agora</button>
-        </div>
-        <div class="logs-container" id="logs-area">
-            <!-- Logs aparecerão aqui dinamicamente -->
-        </div>
-    </div>
-
-    <!-- Modais e Toast (Ocultos) -->
-    <div class="toast-container" id="toast">
-        <span class="toast-msg" id="toast-text">Enviado para a tela!</span>
-    </div>
-    
-    <div class="modal-overlay" id="custom-modal">
-        <div class="modal-card">
-            <div class="modal-title" id="modal-title">Título</div>
-            <div id="modal-inputs" style="display:flex; flex-direction:column; gap:10px;"></div>
+    <!-- Modais Dinâmicos -->
+    <div class="modal-overlay" id="modal">
+        <div class="modal-content">
+            <div class="modal-header" id="modal-title">Título</div>
+            <div id="modal-body"></div>
             <div class="modal-actions">
-                <button class="modal-btn btn-delete" id="modal-delete">Excluir</button>
-                <button class="modal-btn btn-cancel" id="modal-cancel">Cancelar</button>
-                <button class="modal-btn btn-confirm" id="modal-confirm">Confirmar</button>
+                <button class="btn" style="background: #9ca3af; flex: 1;" onclick="fecharModal()">Cancelar</button>
+                <button class="btn btn-blue" style="flex: 1;" id="modal-confirm">Enviar</button>
             </div>
         </div>
     </div>
 
-    <!-- SCRIPT 100% COMPLETO -->
+    <div class="toast" id="toast">Ação executada com sucesso!</div>
+
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-        import { getDatabase, ref, set, onValue, update, push, query, limitToLast } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+        import { getDatabase, ref, set, onValue, update, query, limitToLast } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
-        // COLOQUE SUAS CREDENCIAIS AQUI
+        // CREDENCIAIS DO SEU FIREBASE
         const config = {
             apiKey: "AIzaSyBH7VzRejR_jOg-ogO8mLw162PN5QKODeI",
             authDomain: "termosm-6fed5.firebaseapp.com",
@@ -262,240 +173,129 @@
             databaseURL: "https://termosm-6fed5-default-rtdb.firebaseio.com",
             storageBucket: "termosm-6fed5.firebasestorage.app",
             messagingSenderId: "161850041087",
-            appId: "1:161850041087:web:2dc4f19760f44475fde2ca",
-            measurementId: "G-ZFYXEQ34QL"
+            appId: "1:161850041087:web:2dc4f19760f44475fde2ca"
         };
         const app = initializeApp(config);
         const db = getDatabase(app);
 
-        // ==========================================
-        // 1. SISTEMA DE LOGS E CONTROLE DO ROBÔ
-        // ==========================================
+        // --- FEEDBACK VISUAL (ESPELHO DO PLACAR) ---
+        onValue(ref(db, 'tv/placar'), (snap) => {
+            const data = snap.val();
+            if(!data) return;
+
+            const home = document.getElementById('mirror-home');
+            const away = document.getElementById('mirror-away');
+            const scoreHome = document.getElementById('mirror-score-home');
+            const scoreAway = document.getElementById('mirror-score-away');
+            const time = document.getElementById('mirror-time');
+
+            if(data.status === 'off' || data.acao === 'reset') {
+                home.innerText = "OFF"; away.innerText = "OFF";
+                scoreHome.innerText = "-"; scoreAway.innerText = "-";
+                time.innerText = "00:00";
+            } else if (data.status === 'erro') {
+                home.innerText = "ERRO"; away.innerText = "ERRO";
+                time.innerText = "API ERROR";
+            } else {
+                home.innerText = data.homeAbbr || "CASA";
+                away.innerText = data.awayAbbr || "FORA";
+                scoreHome.innerText = data.homeScore ?? 0;
+                scoreAway.innerText = data.awayScore ?? 0;
+                time.innerText = data.clock || "00:00";
+                if(data.added) time.innerText += ` (+${data.added})`;
+            }
+        });
+
+        // --- SISTEMA DE LOGS ---
         const logsArea = document.getElementById('logs-area');
-        const toggleRobo = document.getElementById('toggle-robo');
-        const btnForce = document.getElementById('btn-force-fetch');
-
-        onValue(ref(db, 'tv/controle/ativo'), (snap) => {
-            if(snap.exists()) toggleRobo.checked = snap.val();
-        });
-
-        toggleRobo.addEventListener('change', (e) => {
-            update(ref(db, 'tv/controle'), { ativo: e.target.checked });
-        });
-
-        btnForce.addEventListener('click', () => {
-            update(ref(db, 'tv/controle'), { forcarBusca: true });
-            btnForce.innerText = "Buscando...";
-            setTimeout(() => { btnForce.innerText = "Verificar Jogo Agora"; }, 2000);
-        });
-
-        // Puxar Histórico de Logs do Firebase
-        const logsQuery = query(ref(db, 'tv/logs'), limitToLast(15));
-        onValue(logsQuery, (snapshot) => {
+        onValue(query(ref(db, 'tv/logs'), limitToLast(20)), (snapshot) => {
             logsArea.innerHTML = '';
             snapshot.forEach((child) => {
                 const data = child.val();
                 const timeStr = new Date(data.timestamp).toLocaleTimeString('pt-BR');
                 const div = document.createElement('div');
-                div.className = `log-entry ${data.tipo}`;
+                div.className = `log-item ${data.tipo}`;
                 div.innerHTML = `<span class="log-time">${timeStr}</span>${data.mensagem}`;
                 logsArea.insertBefore(div, logsArea.firstChild);
             });
         });
 
-        // ==========================================
-        // 2. FUNÇÕES DE INTERFACE (ABAS E TOAST)
-        // ==========================================
-        document.getElementById('btn-tab-testes').addEventListener('click', (e) => switchTab('testes', e.target));
-        document.getElementById('btn-tab-jogadores').addEventListener('click', (e) => switchTab('jogadores', e.target));
-        
-        function switchTab(tab, btn) { 
-            document.querySelectorAll('.view').forEach(el => el.classList.remove('active')); 
-            document.querySelectorAll('.toggle-btn').forEach(el => el.classList.remove('active')); 
-            document.getElementById(`view-${tab}`).classList.add('active'); 
-            btn.classList.add('active'); 
-        }
+        // Forçar leitura na ESPN
+        document.getElementById('btn-force-fetch').onclick = () => {
+            update(ref(db, 'tv/controle'), { forcarBusca: true });
+            mostrarToast("Comando de verificação enviado ao servidor!");
+        };
 
-        let toastTimeout;
-        function showToast(msg = "Enviado para a tela!") {
-            const toastEl = document.getElementById('toast');
-            document.getElementById('toast-text').innerText = msg;
-            toastEl.classList.add('show');
-            clearTimeout(toastTimeout);
-            toastTimeout = setTimeout(() => { toastEl.classList.remove('show'); }, 3000);
-        }
+        // --- MODAIS DE TESTE MANUAIS ---
+        const modal = document.getElementById('modal');
+        const modalBody = document.getElementById('modal-body');
+        const btnConfirm = document.getElementById('modal-confirm');
 
-        // ==========================================
-        // 3. TESTES MANUAIS (GOL, CARTÃO, PLACAR E SUB)
-        // ==========================================
-        window.abrirModalTeste = function (tipo) {
+        window.abrirModal = function(tipo) {
             document.getElementById('modal-title').innerText = `Simular ${tipo.toUpperCase()}`;
             
-            let htmlInputs = `
-                <select id="teste-isCruzeiro" class="modal-input" style="margin-bottom:10px;">
-                    <option value="true">Cruzeiro</option>
-                    <option value="false">Adversário</option>
-                </select>
-            `;
-
-            if(tipo === 'substituicao') {
-                htmlInputs += `
-                    <input type="text" id="teste-sai" class="modal-input" placeholder="Nome de quem SAI (Nº 00)">
-                    <input type="text" id="teste-entra" class="modal-input" placeholder="Nome de quem ENTRA (Nº 00)" style="margin-top:10px;">
-                `;
-            } else {
-                htmlInputs += `<input type="text" id="teste-jogador" class="modal-input" placeholder="Nome do Jogador e Nº">`;
-                if (tipo === 'cartao') {
-                    htmlInputs += `
-                        <select id="teste-tipoCartao" class="modal-input" style="margin-top:10px;">
-                            <option value="amarelo">Amarelo</option><option value="vermelho">Vermelho</option>
-                        </select>
-                    `;
+            let html = `<input type="text" id="teste-time" class="modal-input" placeholder="Sigla do Time (Ex: CRU, FLA)">`;
+            
+            if (tipo === 'gol' || tipo === 'cartao') {
+                html += `<input type="text" id="teste-jogador" class="modal-input" placeholder="Nome do Jogador">`;
+                html += `<input type="text" id="teste-numero" class="modal-input" placeholder="Número da Camisa (Opcional)">`;
+                if(tipo === 'cartao') {
+                    html += `<select id="teste-cor" class="modal-input"><option value="amarelo">Amarelo</option><option value="vermelho">Vermelho</option></select>`;
                 }
+            } else if (tipo === 'substituicao') {
+                html += `<input type="text" id="teste-sai" class="modal-input" placeholder="SAI: Nome do Jogador">
+                         <input type="text" id="teste-entra" class="modal-input" placeholder="ENTRA: Nome do Jogador">`;
+            } else if (tipo === 'acrescimo') {
+                html = `<input type="number" id="teste-min" class="modal-input" placeholder="Minutos (Ex: 5)">`;
             }
 
-            document.getElementById('modal-inputs').innerHTML = htmlInputs;
-            document.getElementById('custom-modal').classList.add('active');
+            modalBody.innerHTML = html;
+            modal.classList.add('active');
 
-            document.getElementById('modal-confirm').onclick = async () => {
-                document.getElementById('custom-modal').classList.remove('active');
-                let isCruzeiro = document.getElementById('teste-isCruzeiro').value === "true";
-                
-                if (tipo === 'substituicao') {
+            btnConfirm.onclick = async () => {
+                fecharModal();
+                if(tipo === 'acrescimo') {
+                    await update(ref(db, 'tv/placar'), { acao: 'acrescimo', added: document.getElementById('teste-min').value, timestamp: Date.now() });
+                } else if (tipo === 'substituicao') {
                     let payload = {
-                        team: isCruzeiro ? "Cruzeiro" : "Adversário",
+                        team: document.getElementById('teste-time').value.toUpperCase(),
                         out: { nome: document.getElementById('teste-sai').value, num: "X" },
                         in: { nome: document.getElementById('teste-entra').value, num: "Y" },
+                        timestamp: Date.now(), hide: false
+                    };
+                    await set(ref(db, 'substituicao'), payload);
+                } else {
+                    let payload = {
+                        teamAbbr: document.getElementById('teste-time').value.toUpperCase(),
+                        jogador: document.getElementById('teste-jogador').value,
+                        numero: document.getElementById('teste-numero').value,
                         timestamp: Date.now()
                     };
-                    await set(ref(db, `substituicao`), payload);
-                } else {
-                    let payload = { isCruzeiro, timestamp: Date.now(), jogador: document.getElementById('teste-jogador').value };
-                    if (tipo === 'cartao') payload.tipo = document.getElementById('teste-tipoCartao').value;
+                    if(tipo === 'cartao') payload.tipo = document.getElementById('teste-cor').value;
                     await set(ref(db, `tv/${tipo}`), payload);
                 }
-                showToast(`Animação de ${tipo.toUpperCase()} enviada!`);
+                mostrarToast(`Animação enviada para o OBS!`);
             };
         };
 
-        window.testarPlacar = async function(acao) {
-            let payload = { acao: acao, timestamp: Date.now() };
-            if(acao === 'acrescimo') {
-                payload.minutos = 5; // Adiciona +5 para teste
+        window.fecharModal = () => modal.classList.remove('active');
+
+        window.enviarComandoPlacar = async (acao) => {
+            let payload = { acao: acao, status: acao, timestamp: Date.now() };
+            if(acao === 'start') {
+                // Mock para iniciar caso não tenha jogo real rodando
+                payload = { ...payload, status: 'in', homeAbbr: 'CRU', awayAbbr: 'ADV', homeScore: 0, awayScore: 0, clock: "00:00" };
             }
-            await set(ref(db, `tv/placar`), payload);
-            showToast(`Comando de placar (${acao}) enviado!`);
+            await set(ref(db, 'tv/placar'), payload);
+            mostrarToast(`Placar atualizado para: ${acao.toUpperCase()}`);
+        };
+
+        function mostrarToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.innerText = msg;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
         }
-
-        document.getElementById('modal-cancel').onclick = () => document.getElementById('custom-modal').classList.remove('active');
-
-        // ==========================================
-        // 4. CRUD DE JOGADORES (Aba Jogadores Mantida)
-        // ==========================================
-        let currentBase64Image = "";
-        
-        document.getElementById('select-team-left').addEventListener('change', () => syncRoster('left'));
-        document.getElementById('select-team-right').addEventListener('change', () => syncRoster('right'));
-        document.getElementById('btn-add-left').addEventListener('click', () => addPlayer('left'));
-        document.getElementById('btn-add-right').addEventListener('click', () => addPlayer('right'));
-
-        function syncRoster(side) {
-            const team = document.getElementById(`select-team-${side}`).value;
-            onValue(ref(db, `elencos/${team}`), (snapshot) => {
-                renderPlayers(side, team, snapshot.val() || []);
-            });
-        }
-
-        function renderPlayers(side, team, players) {
-            const listEl = document.getElementById(`list-${side}`);
-            listEl.innerHTML = '';
-
-            if (players.length === 0) {
-                listEl.innerHTML = '<div class="empty-msg">Nenhum jogador cadastrado.</div>'; return;
-            }
-
-            players.forEach((p, index) => {
-                const li = document.createElement('li');
-                li.className = 'player-item';
-                let imgHTML = p.img ? `<img src="${p.img}">` : '';
-                li.innerHTML = `<div class="player-avatar">${imgHTML}</div><div class="player-info"><span class="player-name">${p.nome || 'Sem nome'}</span><span class="player-num">${p.num}</span></div>`;
-
-                li.addEventListener('click', () => {
-                    document.getElementById('modal-title').innerText = "Editar Jogador";
-                    document.getElementById('modal-inputs').innerHTML = `
-                        <input type="text" id="modal-input-name" class="modal-input" value="${p.nome || ''}">
-                        <input type="number" id="modal-input-num" class="modal-input" value="${p.num || ''}">
-                        <label class="file-upload-label" for="modal-input-file">
-                            <span id="file-label-text">${p.img ? '✓ Foto anexada (clique para trocar)' : '📁 Selecionar foto'}</span>
-                            <input type="file" id="modal-input-file" accept="image/*" style="display: none;">
-                        </label>
-                    `;
-                    currentBase64Image = p.img || "";
-                    
-                    document.getElementById('modal-input-file').addEventListener('change', handleImageUpload);
-                    document.getElementById('modal-delete').style.display = 'block';
-                    document.getElementById('custom-modal').classList.add('active');
-
-                    document.getElementById('modal-confirm').onclick = () => {
-                        players[index] = { nome: document.getElementById('modal-input-name').value, num: document.getElementById('modal-input-num').value, img: currentBase64Image };
-                        set(ref(db, `elencos/${team}`), players);
-                        document.getElementById('custom-modal').classList.remove('active');
-                        document.getElementById('modal-delete').style.display = 'none';
-                    };
-
-                    document.getElementById('modal-delete').onclick = () => {
-                        players.splice(index, 1);
-                        set(ref(db, `elencos/${team}`), players);
-                        document.getElementById('custom-modal').classList.remove('active');
-                        document.getElementById('modal-delete').style.display = 'none';
-                    };
-                });
-                listEl.appendChild(li);
-            });
-        }
-
-        function addPlayer(side) {
-            const team = document.getElementById(`select-team-${side}`).value;
-            document.getElementById('modal-title').innerText = `Adicionar ao ${team}`;
-            document.getElementById('modal-inputs').innerHTML = `
-                <input type="text" id="modal-input-name" class="modal-input" placeholder="Nome">
-                <input type="number" id="modal-input-num" class="modal-input" placeholder="Número">
-                <label class="file-upload-label" for="modal-input-file">
-                    <span id="file-label-text">📁 Selecionar foto</span>
-                    <input type="file" id="modal-input-file" accept="image/*" style="display: none;">
-                </label>
-            `;
-            currentBase64Image = "";
-            document.getElementById('modal-input-file').addEventListener('change', handleImageUpload);
-            document.getElementById('modal-delete').style.display = 'none';
-            document.getElementById('custom-modal').classList.add('active');
-
-            document.getElementById('modal-confirm').onclick = () => {
-                const num = document.getElementById('modal-input-num').value;
-                if(num) {
-                    onValue(ref(db, `elencos/${team}`), (snapshot) => {
-                        const current = snapshot.val() || [];
-                        current.push({ nome: document.getElementById('modal-input-name').value, num: num, img: currentBase64Image });
-                        set(ref(db, `elencos/${team}`), current);
-                    }, { onlyOnce: true });
-                }
-                document.getElementById('custom-modal').classList.remove('active');
-            };
-        }
-
-        function handleImageUpload(e) {
-            const file = e.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = (event) => {
-                    currentBase64Image = event.target.result;
-                    document.getElementById('file-label-text').innerText = "✓ Foto selecionada";
-                };
-                reader.readAsDataURL(file);
-            }
-        }
-
-        syncRoster('left'); syncRoster('right');
     </script>
 </body>
 </html>
