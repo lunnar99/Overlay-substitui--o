@@ -6,7 +6,7 @@ const LIGAS_DEFAULT = [
 ];
 
 const FIREBASE_DB_URL = 'https://termosm-6fed5-default-rtdb.firebaseio.com';
-const eventosEnviados = new Set(); // Antiduplicação garantida
+const eventosEnviados = new Set();
 let ultimoAlvoId = '';
 
 async function atualizarFirebase(endpoint, payload) {
@@ -97,6 +97,7 @@ export async function buscarERodarJogo() {
 
         const isHalftime = statusType === 'STATUS_HALFTIME' || comp.status?.type?.detail === 'HT';
 
+        // 1. JOGO EM ANDAMENTO OU PRÉ-JOGO
         if (estadoJogo === 'in' || estadoJogo === 'pre') {
             const relogioExibicao = comp.status?.displayClock || "00:00";
             const clockParts = relogioExibicao.split('+');
@@ -112,7 +113,7 @@ export async function buscarERodarJogo() {
                 period: periodoAtual
             });
 
-            // VARREDURA DE SUBSTITUIÇÕES, CARTÕES E GOLS NO SUMMARY
+            // PROCESSAMENTO DE EVENTOS (GOLS, CARTÕES E SUBSTITUIÇÕES)
             const summaryApiUrl = `https://site.api.espn.com/apis/site/v2/sports/soccer/bra.1/summary?event=${jogoEncontrado.id}`;
             try {
                 const summaryRes = await fetch(summaryApiUrl);
@@ -126,7 +127,6 @@ export async function buscarERodarJogo() {
                     const siglaTime = (teamID === timeCasa.team.id) ? timeCasa.team.abbreviation : timeFora.team.abbreviation;
                     const tipoTexto = evento.type?.text?.toLowerCase() || '';
 
-                    // 1. CAPTURA DE SUBSTITUIÇÃO
                     if (tipoTexto.includes('substitution') || evento.type?.id === '80') {
                         const jogadorEntra = evento.participants?.[0]?.athlete?.displayName || 'Jogador Entra';
                         const jogadorSai = evento.participants?.[1]?.athlete?.displayName || 'Jogador Sai';
@@ -141,7 +141,6 @@ export async function buscarERodarJogo() {
                         registrarLog(`🔄 Substituição (${siglaTime}): Entra ${jogadorEntra} / Sai ${jogadorSai}`, 'info');
                         eventosEnviados.add(idUnico);
                     }
-                    // 2. CAPTURA DE GOL
                     else if (evento.type?.id === '1') { 
                         const jogador = evento.participants?.[0]?.athlete?.displayName || 'Jogador';
                         const numero = evento.participants?.[0]?.athlete?.jersey || '--';
@@ -150,7 +149,6 @@ export async function buscarERodarJogo() {
                         registrarLog(`⚽ GOL! ${jogador} (${siglaTime})`, 'success');
                         eventosEnviados.add(idUnico);
                     }
-                    // 3. CAPTURA DE CARTÃO
                     else if (tipoTexto.includes('card')) { 
                         const jogador = evento.participants?.[0]?.athlete?.displayName || 'Jogador';
                         const numero = evento.participants?.[0]?.athlete?.jersey || '--';
@@ -164,6 +162,18 @@ export async function buscarERodarJogo() {
             } catch (err) {}
 
             return 10000;
+        } 
+        // 2. JOGO ENCERRADO (MANTÉM O PLACAR COM FIM DE JOGO)
+        else if (estadoJogo === 'post') {
+            await atualizarFirebase('tv/placar', {
+                status: 'post',
+                homeAbbr: timeCasa.team.abbreviation,
+                awayAbbr: timeFora.team.abbreviation,
+                homeScore: parseInt(timeCasa.score) || 0,
+                awayScore: parseInt(timeFora.score) || 0,
+                clock: 'FIM DE JOGO'
+            });
+            return 30000;
         } else {
             await atualizarFirebase('tv/placar', { status: 'off' });
             return 30000;
