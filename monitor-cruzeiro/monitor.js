@@ -7,7 +7,7 @@ const LIGAS_DEFAULT = [
 
 const FIREBASE_DB_URL = 'https://termosm-6fed5-default-rtdb.firebaseio.com';
 let ultimosEventos = { gol: [], cartao: [], sub: [] };
-let jogoIniciadoNotificado = false;
+let ultimoAlvoId = '';
 
 async function atualizarFirebase(endpoint, payload) {
     try { await fetch(`${FIREBASE_DB_URL}/${endpoint}.json`, { method: 'PUT', body: JSON.stringify({ ...payload, timestamp: Date.now() }) }); } catch (e) {}
@@ -32,13 +32,20 @@ async function lerConfiguracaoAlvo() {
 export async function buscarERodarJogo() {
     try {
         const config = await lerConfiguracaoAlvo();
-        
+
+        // Se trocou de jogo, reseta os eventos registrados
+        if (config.alvo !== ultimoAlvoId) {
+            ultimosEventos = { gol: [], cartao: [], sub: [] };
+            ultimoAlvoId = config.alvo;
+        }
+
         const date = new Date();
         const yyyy = date.getFullYear();
         const mm = String(date.getMonth() + 1).padStart(2, '0');
         const dd = String(date.getDate()).padStart(2, '0');
         const datesParam = `?dates=${yyyy}${mm}${dd}-${yyyy}1231`;
 
+        // USA A URL DA LIGA ESCOLHIDA OU BUSCA NAS DUAS
         let urlsParaBuscar = config.urlLiga ? [`${config.urlLiga}${datesParam}`] : LIGAS_DEFAULT.map(u => `${u}${datesParam}`);
 
         let todosEventos = [];
@@ -53,8 +60,6 @@ export async function buscarERodarJogo() {
         let jogoEncontrado = null;
 
         for (const evento of todosEventos) {
-            if (evento.status.type.state === 'post') continue;
-
             if (config.tipo === 'id' && evento.id === config.alvo) {
                 jogoEncontrado = evento;
                 break;
@@ -71,7 +76,7 @@ export async function buscarERodarJogo() {
 
         if (!jogoEncontrado) {
             atualizarFirebase('tv/placar', { status: 'off' });
-            return 30000; // Checa a cada 30s se surgiu algo
+            return 10000; 
         }
 
         const competidores = jogoEncontrado.competitions[0].competitors;
@@ -79,12 +84,7 @@ export async function buscarERodarJogo() {
         const timeFora = competidores.find(c => c.homeAway === 'away');
         const estadoJogo = jogoEncontrado.status.type.state; 
 
-        if (estadoJogo === 'in') {
-            if (!jogoIniciadoNotificado) {
-                registrarLog(`🔥 BOLA ROLANDO: ${timeCasa.team.name} x ${timeFora.team.name}!`, 'success');
-                jogoIniciadoNotificado = true;
-            }
-
+        if (estadoJogo === 'in' || estadoJogo === 'pre') {
             const clockText = jogoEncontrado.status.displayClock || "00:00";
             const clockParts = clockText.split('+');
             const relogio = clockParts[0].replace(/'/g, ''); 
@@ -100,48 +100,40 @@ export async function buscarERodarJogo() {
                 added: acrescimo
             });
 
-            // Gols e Cartões
+            // GOLS E CARTÕES (SUMMARY)
             const summaryApiUrl = `https://site.api.espn.com/apis/site/v2/sports/soccer/bra.1/summary?event=${jogoEncontrado.id}`;
-            const summaryRes = await fetch(summaryApiUrl);
-            const summary = await summaryRes.json();
-            
-            (summary.keyEvents || []).forEach(evento => {
-                if(ultimosEventos.gol.includes(evento.id) || ultimosEventos.cartao.includes(evento.id)) return;
+            try {
+                const summaryRes = await fetch(summaryApiUrl);
+                const summary = await summaryRes.json();
                 
-                const jogador = evento.participants?.[0]?.athlete?.displayName || 'Desconhecido';
-                const numero = evento.participants?.[0]?.athlete?.jersey || '--';
-                const teamID = evento.team?.id;
-                const siglaTime = (teamID === timeCasa.team.id) ? timeCasa.team.abbreviation : timeFora.team.abbreviation;
-                
-                if (evento.type?.id === '1') { 
-                    atualizarFirebase('tv/gol', { teamAbbr: siglaTime, jogador, numero });
-                    registrarLog(`⚽ GOL! ${jogador} (${siglaTime})`, 'success');
-                    ultimosEventos.gol.push(evento.id);
-                }
-                if (evento.type?.text?.toLowerCase().includes('card')) { 
-                    const tipo = evento.type.text.toLowerCase().includes('red') ? 'vermelho' : 'amarelo';
-                    atualizarFirebase('tv/cartao', { teamAbbr: siglaTime, jogador, numero, tipo });
-                    registrarLog(`🟨 Cartão ${tipo}: ${jogador} (${siglaTime})`, 'warning');
-                    ultimosEventos.cartao.push(evento.id);
-                }
-            });
+                (summary.keyEvents || []).forEach(evento => {
+                    if(ultimosEventos.gol.includes(evento.id) || ultimosEventos.cartao.includes(evento.id)) return;
+                    
+                    const jogador = evento.participants?.[0]?.athlete?.displayName || 'Desconhecido';
+                    const numero = evento.participants?.[0]?.athlete?.jersey || '--';
+                    const teamID = evento.team?.id;
+                    const siglaTime = (teamID === timeCasa.team.id) ? timeCasa.team.abbreviation : timeFora.team.abbreviation;
+                    
+                    if (evento.type?.id === '1') { 
+                        atualizarFirebase('tv/gol', { teamAbbr: siglaTime, jogador, numero });
+                        registrarLog(`⚽ GOL! ${jogador} (${siglaTime})`, 'success');
+                        ultimosEventos.gol.push(evento.id);
+                    }
+                    if (evento.type?.text?.toLowerCase().includes('card')) { 
+                        const tipo = evento.type.text.toLowerCase().includes('red') ? 'vermelho' : 'amarelo';
+                        atualizarFirebase('tv/cartao', { teamAbbr: siglaTime, jogador, numero, tipo });
+                        registrarLog(`🟨 Cartão ${tipo}: ${jogador} (${siglaTime})`, 'warning');
+                        ultimosEventos.cartao.push(evento.id);
+                    }
+                });
+            } catch (err) {}
 
-            return 15000; // Checa a cada 15s durante a partida
-        } 
-        else if (estadoJogo === 'pre') {
-            jogoIniciadoNotificado = false;
-            // Exibe as siglas e 0x0 pré-jogo em vez de 'OFF'
-            await atualizarFirebase('tv/placar', {
-                status: 'in',
-                homeAbbr: timeCasa.team.abbreviation,
-                awayAbbr: timeFora.team.abbreviation,
-                homeScore: 0,
-                awayScore: 0,
-                clock: "PRÉ-JOGO"
-            });
+            return 10000; // Checa a cada 10 segundos
+        } else {
+            atualizarFirebase('tv/placar', { status: 'off' });
+            return 30000;
+        }
 
-            return 15000; // Checa a cada 15s no pré-jogo para pegar o início imediatamente!
-        } 
     } catch (e) {
         atualizarFirebase('tv/placar', { status: 'erro' });
         return 30000;
@@ -154,7 +146,7 @@ async function start() {
 }
 
 const PORT = process.env.PORT || 10000;
-http.createServer((req, res) => { res.writeHead(200); res.end('Monitor Ativo'); }).listen(PORT, () => {
+http.createServer((req, res) => { res.writeHead(200); res.end('Monitor Multi-Ligas Ativo'); }).listen(PORT, () => {
     console.log(`Servidor rodando na porta ${PORT}`);
     start();
 });
