@@ -8,6 +8,7 @@ const LIGAS_DEFAULT = [
 const FIREBASE_DB_URL = 'https://termosm-6fed5-default-rtdb.firebaseio.com';
 const RENDER_PUBLIC_URL = 'https://derkfutoverlay.onrender.com';
 
+// KEY DA LIVE-FOOTBALL-API
 const LINEUP_KEY = "d721754541caf9f268719979490cd4471ebb48d8203e954a316e7225ab5a1c6a";
 
 const eventosEnviados = new Set();
@@ -21,16 +22,32 @@ setInterval(() => {
 }, 10 * 60 * 1000);
 
 async function atualizarFirebase(endpoint, payload) {
-    try { await fetch(`${FIREBASE_DB_URL}/${endpoint}.json`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...payload, timestamp: Date.now() }) }); } catch (e) {}
+    try { 
+        await fetch(`${FIREBASE_DB_URL}/${endpoint}.json`, { 
+            method: 'PUT', 
+            headers: { 'Content-Type': 'application/json' }, 
+            body: JSON.stringify({ ...payload, timestamp: Date.now() }) 
+        }); 
+    } catch (e) {}
 }
 
 async function registrarLog(mensagem, tipo = 'info') {
-    try { await fetch(`${FIREBASE_DB_URL}/tv/logs.json`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mensagem, tipo, timestamp: Date.now() }) }); } catch (e) {}
+    try { 
+        await fetch(`${FIREBASE_DB_URL}/tv/logs.json`, { 
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json' }, 
+            body: JSON.stringify({ mensagem, tipo, timestamp: Date.now() }) 
+        }); 
+    } catch (e) {}
 }
 
 async function lerConfiguracaoAlvo() {
-    try { const res = await fetch(`${FIREBASE_DB_URL}/tv/config.json`); return await res.json() || { tipo: 'time', alvo: 'Cruzeiro' }; } 
-    catch (e) { return { tipo: 'time', alvo: 'Cruzeiro' }; }
+    try { 
+        const res = await fetch(`${FIREBASE_DB_URL}/tv/config.json`); 
+        return await res.json() || { tipo: 'time', alvo: 'Cruzeiro' }; 
+    } catch (e) { 
+        return { tipo: 'time', alvo: 'Cruzeiro' }; 
+    }
 }
 
 export async function buscarERodarJogo() {
@@ -57,16 +74,29 @@ export async function buscarERodarJogo() {
 
         let jogoEncontrado = null;
         for (const evento of todosEventos) {
-            if (config.tipo === 'id' && String(evento.id) === String(config.alvo)) { jogoEncontrado = evento; break; } 
-            else if (config.tipo === 'time') {
+            if (config.tipo === 'id' && String(evento.id) === String(config.alvo)) { 
+                jogoEncontrado = evento; 
+                break; 
+            } else if (config.tipo === 'time') {
                 const nomes = evento.competitions[0].competitors.map(c => c.team.name.toLowerCase());
-                if (nomes.some(n => n.includes(config.alvo.toLowerCase()))) { jogoEncontrado = evento; break; }
+                if (nomes.some(n => n.includes(config.alvo.toLowerCase()))) { 
+                    jogoEncontrado = evento; 
+                    break; 
+                }
             }
         }
 
-        await atualizarFirebase('tv/debug', { alvoBuscado: config.alvo, jogosEncontradosNaAPI: todosEventos.length, jogoAchado: jogoEncontrado ? `${jogoEncontrado.name} (${jogoEncontrado.status.type.state})` : "NÃO ACHOU NA LISTA ATUAL", timestamp: Date.now() });
+        await atualizarFirebase('tv/debug', { 
+            alvoBuscado: config.alvo, 
+            jogosEncontradosNaAPI: todosEventos.length, 
+            jogoAchado: jogoEncontrado ? `${jogoEncontrado.name} (${jogoEncontrado.status.type.state})` : "NÃO ACHOU NA LISTA ATUAL", 
+            timestamp: Date.now() 
+        });
 
-        if (!jogoEncontrado) { await atualizarFirebase('tv/placar', { status: 'off' }); return 10000; }
+        if (!jogoEncontrado) { 
+            await atualizarFirebase('tv/placar', { status: 'off' }); 
+            return 10000; 
+        }
 
         const comp = jogoEncontrado.competitions[0];
         const timeCasa = comp.competitors.find(c => c.homeAway === 'home');
@@ -81,11 +111,9 @@ export async function buscarERodarJogo() {
             const tempoAtual = Date.now();
             
             if (!config.endedAt) {
-                // Marca o horário em que o jogo acabou no Firebase
                 await atualizarFirebase('tv/config', { ...config, endedAt: tempoAtual });
-                console.log("[RENDER LOG] Jogo encerrado! Iniciando contagem de 60 minutos para limpeza global.");
+                console.log("[RENDER LOG] Jogo encerrado! Limpeza agendada para daqui a 60 minutos.");
             } else if (tempoAtual - config.endedAt > 60 * 60 * 1000) {
-                // Se passou 1 hora, apaga TUDO do Firebase!
                 await fetch(`${FIREBASE_DB_URL}/tv.json`, { method: 'DELETE' });
                 await fetch(`${FIREBASE_DB_URL}/substituicao.json`, { method: 'DELETE' });
                 ultimoAlvoId = '';
@@ -93,16 +121,25 @@ export async function buscarERodarJogo() {
                 return 30000;
             }
 
-            await atualizarFirebase('tv/placar', { status: 'post', homeAbbr: timeCasa.team.abbreviation, awayAbbr: timeFora.team.abbreviation, homeScore: parseInt(timeCasa.score) || 0, awayScore: parseInt(timeFora.score) || 0, clock: 'FIM DE JOGO' });
+            await atualizarFirebase('tv/placar', { 
+                status: 'post', 
+                homeAbbr: timeCasa.team.abbreviation, 
+                awayAbbr: timeFora.team.abbreviation, 
+                homeScore: parseInt(timeCasa.score) || 0, 
+                awayScore: parseInt(timeFora.score) || 0, 
+                clock: 'FIM DE JOGO' 
+            });
             return 30000;
         } else {
-            // Se o jogo estava 'post' e voltou pra 'in' (ex: correção do VAR), removemos a tag de encerramento
             if (config.endedAt) {
                 const { endedAt, ...configLimpa } = config;
-                await fetch(`${FIREBASE_DB_URL}/tv/config.json`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(configLimpa) });
+                await fetch(`${FIREBASE_DB_URL}/tv/config.json`, { 
+                    method: 'PUT', 
+                    headers: { 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify(configLimpa) 
+                });
             }
         }
-        // =========================================================
 
         if (estadoJogo === 'pre') {
             await atualizarFirebase('tv/placar', { status: 'pre', homeAbbr: timeCasa.team.abbreviation, awayAbbr: timeFora.team.abbreviation, homeScore: 0, awayScore: 0, clock: 'PRÉ-JOGO', period: 1 });
@@ -110,24 +147,47 @@ export async function buscarERodarJogo() {
         }
         else if (estadoJogo === 'in') {
             const relogio = (comp.status?.displayClock || "00:00").split('+')[0].replace(/'/g, ''); 
-            await atualizarFirebase('tv/placar', { status: isHalftime ? 'halftime' : 'in', homeAbbr: timeCasa.team.abbreviation, awayAbbr: timeFora.team.abbreviation, homeScore: parseInt(timeCasa.score) || 0, awayScore: parseInt(timeFora.score) || 0, clock: isHalftime ? 'INT' : relogio, period: comp.status?.period || 1 });
+
+            await atualizarFirebase('tv/placar', {
+                status: isHalftime ? 'halftime' : 'in',
+                homeAbbr: timeCasa.team.abbreviation,
+                awayAbbr: timeFora.team.abbreviation,
+                homeScore: parseInt(timeCasa.score) || 0,
+                awayScore: parseInt(timeFora.score) || 0,
+                clock: isHalftime ? 'INT' : relogio,
+                period: comp.status?.period || 1
+            });
 
             const slugFinal = jogoEncontrado.slugDaLigaParaBusca || 'bra.1';
             const summaryApiUrl = `https://site.api.espn.com/apis/site/v2/sports/soccer/${slugFinal}/summary?event=${jogoEncontrado.id}`;
             try {
                 const summaryRes = await fetch(summaryApiUrl);
                 const summary = await summaryRes.json();
+
                 (summary.keyEvents || []).forEach(evento => {
                     const idUnico = `${jogoEncontrado.id}_${evento.id}`;
                     if (eventosEnviados.has(idUnico)) return;
+
                     const siglaTime = (evento.team?.id === timeCasa.team.id) ? timeCasa.team.abbreviation : timeFora.team.abbreviation;
                     const tipoTexto = evento.type?.text?.toLowerCase() || '';
 
-                    if (tipoTexto.includes('substitution') || evento.type?.id === '80') { atualizarFirebase('substituicao', { team: siglaTime, out: { nome: evento.participants?.[1]?.athlete?.displayName || 'X', num: '--' }, in: { nome: evento.participants?.[0]?.athlete?.displayName || 'Y', num: '--' }, hide: false }); registrarLog(`🔄 Substituição (${siglaTime})`, 'info'); eventosEnviados.add(idUnico); } 
-                    else if (evento.type?.id === '1') { atualizarFirebase('tv/gol', { teamAbbr: siglaTime, jogador: evento.participants?.[0]?.athlete?.displayName || 'GOL', numero: '--' }); registrarLog(`⚽ GOL! (${siglaTime})`, 'success'); eventosEnviados.add(idUnico); } 
-                    else if (tipoTexto.includes('card')) { const cor = tipoTexto.includes('red') ? 'vermelho' : 'amarelo'; atualizarFirebase('tv/cartao', { teamAbbr: siglaTime, jogador: evento.participants?.[0]?.athlete?.displayName || 'Card', numero: '--', tipo: cor }); registrarLog(`🟨 Cartão ${cor.toUpperCase()} (${siglaTime})`, 'warning'); eventosEnviados.add(idUnico); }
+                    if (tipoTexto.includes('substitution') || evento.type?.id === '80') {
+                        atualizarFirebase('substituicao', { team: siglaTime, out: { nome: evento.participants?.[1]?.athlete?.displayName || 'X', num: '--' }, in: { nome: evento.participants?.[0]?.athlete?.displayName || 'Y', num: '--' }, hide: false });
+                        registrarLog(`🔄 Substituição (${siglaTime})`, 'info');
+                        eventosEnviados.add(idUnico);
+                    } else if (evento.type?.id === '1') { 
+                        atualizarFirebase('tv/gol', { teamAbbr: siglaTime, jogador: evento.participants?.[0]?.athlete?.displayName || 'GOL', numero: '--' });
+                        registrarLog(`⚽ GOL! (${siglaTime})`, 'success');
+                        eventosEnviados.add(idUnico);
+                    } else if (tipoTexto.includes('card')) { 
+                        const cor = tipoTexto.includes('red') ? 'vermelho' : 'amarelo';
+                        atualizarFirebase('tv/cartao', { teamAbbr: siglaTime, jogador: evento.participants?.[0]?.athlete?.displayName || 'Card', numero: '--', tipo: cor });
+                        registrarLog(`🟨 Cartão ${cor.toUpperCase()} (${siglaTime})`, 'warning');
+                        eventosEnviados.add(idUnico);
+                    }
                 });
             } catch (err) {}
+
             return 10000;
         } 
     } catch (e) {
@@ -137,10 +197,9 @@ export async function buscarERodarJogo() {
 }
 
 // =========================================================
-// BUSCA AUTOMÁTICA DA ESCALAÇÃO (BUSCA ELÁSTICA + CUSTO DE CRÉDITO)
+// BUSCA AUTOMÁTICA DE ESCALAÇÃO (LIVE-FOOTBALL-API)
 // =========================================================
 
-// Função para formatar os nomes de times complexos em uma única palavra-chave forte
 function simplificarNome(nome) {
     if (!nome) return "";
     return nome.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().split("-")[0].split(" ")[0]; 
@@ -156,7 +215,6 @@ async function buscarEscalacaoAutomatica(homeName, awayName, gameDateISO) {
     }
 
     try {
-        // Gera a string de datas considerando a possibilidade de UTC (Ontem, Hoje e Amanhã)
         const datasParaTestar = [];
         for (let i = -1; i <= 1; i++) {
             const d = new Date(dataJogo);
@@ -168,7 +226,7 @@ async function buscarEscalacaoAutomatica(homeName, awayName, gameDateISO) {
         const hKey = simplificarNome(homeName);
         const aKey = simplificarNome(awayName);
 
-        // STEP 1: Loop por datas e tentativa de Match Fuzzy (Gasta créditos de busca)
+        // STEP 1: Busca a partida na rota /api/v1/matches
         for (const dateStr of datasParaTestar) {
             const fixturesUrl = `https://live-football-api.com/api/v1/matches?key=${LINEUP_KEY}&date=${dateStr}`;
             const fixRes = await fetch(fixturesUrl);
@@ -185,17 +243,17 @@ async function buscarEscalacaoAutomatica(homeName, awayName, gameDateISO) {
 
                 if (match) {
                     matchId = match.id || match.match_id;
-                    break; // Sai do loop assim que acha!
+                    break;
                 }
             }
         }
 
         if (!matchId) {
-            return { sucesso: false, mensagem: `Não encontramos "${hKey} x ${aKey}" na lista oficial da API. O jogo pode não estar coberto por eles hoje.` };
+            return { sucesso: false, mensagem: `Não encontramos "${hKey} x ${aKey}" na lista da Live-Football-API hoje.` };
         }
 
-        // STEP 2: Chamada do endpoint de Lineups (Gasta +1 Crédito)
-        const lineupUrl = `https://live-football-api.com/api/v1/matches/${matchId}/lineups?key=${LINEUP_KEY}`;
+        // STEP 2: Chamada oficial na rota /api/v1/lineups (GASTA 1 CRÉDITO)
+        const lineupUrl = `https://live-football-api.com/api/v1/lineups?key=${LINEUP_KEY}&match_id=${matchId}`;
         const lineupRes = await fetch(lineupUrl);
         const json = await lineupRes.json();
 
@@ -207,11 +265,11 @@ async function buscarEscalacaoAutomatica(homeName, awayName, gameDateISO) {
             });
             return { sucesso: true, mensagem: "Escalação encontrada e salva no Firebase!", dadosBrutos: json.data };
         } else {
-            return { sucesso: false, mensagem: json.message || "A escalação oficial ainda não foi divulgada pelos clubes na plataforma." };
+            return { sucesso: false, mensagem: json.message || "A escalação oficial ainda não foi divulgada na plataforma." };
         }
 
     } catch (error) {
-        return { sucesso: false, mensagem: "Falha de comunicação com a Live-Football-API. Verifique seus limites." };
+        return { sucesso: false, mensagem: "Falha de comunicação com a Live-Football-API." };
     }
 }
 
@@ -227,7 +285,11 @@ http.createServer(async (req, res) => {
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-    if (req.method === 'OPTIONS') { res.writeHead(204); res.end(); return; }
+    if (req.method === 'OPTIONS') {
+        res.writeHead(204);
+        res.end();
+        return;
+    }
 
     if (req.url.startsWith('/escalacao')) {
         const urlParams = new URLSearchParams(req.url.split('?')[1]);
@@ -241,7 +303,8 @@ http.createServer(async (req, res) => {
         return;
     }
 
-    res.writeHead(200); res.end('Servidor Ativo'); 
+    res.writeHead(200); 
+    res.end('Servidor Ativo'); 
 }).listen(PORT, () => { 
     console.log(`[RENDER LOG] Servidor rodando na porta ${PORT}`);
     start(); 
