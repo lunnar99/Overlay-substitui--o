@@ -97,7 +97,6 @@ export async function buscarERodarJogo() {
 
         const isHalftime = statusType === 'STATUS_HALFTIME' || comp.status?.type?.detail === 'HT';
 
-        // 1. JOGO EM ANDAMENTO OU PRÉ-JOGO
         if (estadoJogo === 'in' || estadoJogo === 'pre') {
             const relogioExibicao = comp.status?.displayClock || "00:00";
             const clockParts = relogioExibicao.split('+');
@@ -113,7 +112,6 @@ export async function buscarERodarJogo() {
                 period: periodoAtual
             });
 
-            // PROCESSAMENTO DE EVENTOS (GOLS, CARTÕES E SUBSTITUIÇÕES)
             const summaryApiUrl = `https://site.api.espn.com/apis/site/v2/sports/soccer/bra.1/summary?event=${jogoEncontrado.id}`;
             try {
                 const summaryRes = await fetch(summaryApiUrl);
@@ -163,7 +161,6 @@ export async function buscarERodarJogo() {
 
             return 10000;
         } 
-        // 2. JOGO ENCERRADO (MANTÉM O PLACAR COM FIM DE JOGO)
         else if (estadoJogo === 'post') {
             await atualizarFirebase('tv/placar', {
                 status: 'post',
