@@ -4,35 +4,19 @@
     <meta charset="UTF-8">
     <style>
         body { margin: 0; overflow: hidden; font-family: 'Arial Black', Impact, sans-serif; display: flex; align-items: flex-start; padding: 20px; }
-        
-        .scoreboard-wrapper {
-            display: flex; align-items: center; background: rgba(10, 10, 20, 0.95);
-            border: 2px solid rgba(255, 255, 255, 0.2); border-radius: 12px;
-            padding: 8px 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.6); color: white; gap: 15px;
-        }
-
-        .match-info {
-            display: flex; align-items: center; gap: 12px; font-size: 2rem;
-            background: #111; padding: 5px 20px; border-radius: 8px;
-        }
-
+        .scoreboard-wrapper { display: flex; align-items: center; background: rgba(10, 10, 20, 0.95); border: 2px solid rgba(255, 255, 255, 0.2); border-radius: 12px; padding: 8px 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.6); color: white; gap: 15px; }
+        .match-info { display: flex; align-items: center; gap: 12px; font-size: 2rem; background: #111; padding: 5px 20px; border-radius: 8px; }
         .team-box { display: flex; flex-direction: column; align-items: center; position: relative; padding-top: 6px; }
         .card-bar { position: absolute; top: 0; width: 100%; height: 4px; border-radius: 2px; display: none; }
         .card-bar.amarelo { background: #f59e0b; display: block; box-shadow: 0 0 8px #f59e0b; }
         .card-bar.vermelho { background: #ef4444; display: block; box-shadow: 0 0 8px #ef4444; }
-
         .team-abbr { font-weight: 900; letter-spacing: 2px; text-transform: uppercase; }
         .score { color: #f59e0b; font-weight: 900; }
         .divider { color: #555; font-size: 1.5rem; }
         .team-cruzeiro { color: #3b82f6; }
-
         .clock-container { display: flex; align-items: center; gap: 8px; font-size: 2rem; font-weight: 900; min-width: 140px; justify-content: center; }
-        .added-timer {
-            background: #eab308; color: #000; font-size: 1.3rem; font-weight: 900;
-            padding: 2px 8px; border-radius: 6px; display: none;
-        }
+        .added-timer { background: #eab308; color: #000; font-size: 1.3rem; font-weight: 900; padding: 2px 8px; border-radius: 6px; display: none; }
         .added-timer.show { display: inline-block; }
-
         .status-msg { font-size: 2rem; font-weight: 900; color: #888; letter-spacing: 3px; padding: 5px 30px; }
     </style>
 </head>
@@ -40,24 +24,13 @@
 
     <div class="scoreboard-wrapper" id="board">
         <div class="status-msg" id="status-display">OFF</div>
-
         <div class="match-info" id="match-display" style="display: none;">
-            <div class="team-box">
-                <div class="card-bar" id="card-home"></div>
-                <span class="team-abbr" id="home-team">CASA</span>
-            </div>
-            <span class="score" id="home-score">0</span>
-            <span class="divider">x</span>
-            <span class="score" id="away-score">0</span>
-            <div class="team-box">
-                <div class="card-bar" id="card-away"></div>
-                <span class="team-abbr" id="away-team">FORA</span>
-            </div>
+            <div class="team-box"><div class="card-bar" id="card-home"></div><span class="team-abbr" id="home-team">CASA</span></div>
+            <span class="score" id="home-score">0</span><span class="divider">x</span><span class="score" id="away-score">0</span>
+            <div class="team-box"><div class="card-bar" id="card-away"></div><span class="team-abbr" id="away-team">FORA</span></div>
         </div>
-
         <div class="clock-container" id="clock-display" style="display: none;">
-            <span id="timer-main">00:00</span>
-            <span class="added-timer" id="timer-added">+00:00</span>
+            <span id="timer-main">00:00</span><span class="added-timer" id="timer-added">+00:00</span>
         </div>
     </div>
 
@@ -80,50 +53,26 @@
         const cardHome = document.getElementById('card-home');
         const cardAway = document.getElementById('card-away');
 
-        let totalSeconds = 0;
-        let addedSeconds = 0;
-        let timerInterval = null;
-        let currentPeriod = 1;
+        let totalSeconds = 0; let addedSeconds = 0; let timerInterval = null; let currentPeriod = 1;
 
-        function colorirCruzeiro(el, sigla) {
-            if(sigla === 'CRU') el.classList.add('team-cruzeiro');
-            else el.classList.remove('team-cruzeiro');
-        }
-
-        function formatTime(sec) {
-            const m = String(Math.floor(sec / 60)).padStart(2, '0');
-            const s = String(sec % 60).padStart(2, '0');
-            return `${m}:${s}`;
-        }
+        function colorirCruzeiro(el, sigla) { if(sigla === 'CRU') el.classList.add('team-cruzeiro'); else el.classList.remove('team-cruzeiro'); }
+        function formatTime(sec) { const m = String(Math.floor(sec / 60)).padStart(2, '0'); const s = String(sec % 60).padStart(2, '0'); return `${m}:${s}`; }
 
         function startTimer() {
             if (timerInterval) return;
             timerInterval = setInterval(() => {
                 const limitSec = 45 * 60; 
-                if (totalSeconds < limitSec) {
-                    totalSeconds++;
-                    timerMain.innerText = formatTime(totalSeconds);
-                } else {
-                    timerMain.innerText = formatTime(limitSec);
-                    addedSeconds++;
-                    timerAdded.innerText = `+${formatTime(addedSeconds)}`;
-                    timerAdded.classList.add('show');
-                }
+                if (totalSeconds < limitSec) { totalSeconds++; timerMain.innerText = formatTime(totalSeconds); } 
+                else { timerMain.innerText = formatTime(limitSec); addedSeconds++; timerAdded.innerText = `+${formatTime(addedSeconds)}`; timerAdded.classList.add('show'); }
             }, 1000);
         }
 
         function setModo(modo) {
-            if(modo === 'in' || modo === 'start' || modo === 'halftime' || modo === 'post') {
-                statusDisplay.style.display = 'none';
-                matchDisplay.style.display = 'flex';
-                clockDisplay.style.display = 'flex';
+            if(modo === 'in' || modo === 'start' || modo === 'halftime' || modo === 'post' || modo === 'pre') {
+                statusDisplay.style.display = 'none'; matchDisplay.style.display = 'flex'; clockDisplay.style.display = 'flex';
             } else {
-                statusDisplay.style.display = 'block';
-                matchDisplay.style.display = 'none';
-                clockDisplay.style.display = 'none';
-                statusDisplay.innerText = modo.toUpperCase();
-                clearInterval(timerInterval);
-                timerInterval = null;
+                statusDisplay.style.display = 'block'; matchDisplay.style.display = 'none'; clockDisplay.style.display = 'none';
+                statusDisplay.innerText = modo.toUpperCase(); clearInterval(timerInterval); timerInterval = null;
             }
         }
 
@@ -131,64 +80,33 @@
             const data = snap.val();
             if (!data) return;
 
-            if (data.status === 'off' || data.acao === 'reset') {
-                setModo('off');
-            } else {
+            if (data.status === 'off' || data.acao === 'reset') { setModo('off'); } 
+            else {
                 setModo(data.status);
-                
-                homeTeam.innerText = data.homeAbbr || "CASA";
-                awayTeam.innerText = data.awayAbbr || "FORA";
-                colorirCruzeiro(homeTeam, data.homeAbbr);
-                colorirCruzeiro(awayTeam, data.awayAbbr);
+                homeTeam.innerText = data.homeAbbr || "CASA"; awayTeam.innerText = data.awayAbbr || "FORA";
+                colorirCruzeiro(homeTeam, data.homeAbbr); colorirCruzeiro(awayTeam, data.awayAbbr);
+                homeScore.innerText = data.homeScore ?? 0; awayScore.innerText = data.awayScore ?? 0;
 
-                homeScore.innerText = data.homeScore ?? 0;
-                awayScore.innerText = data.awayScore ?? 0;
-
-                if (data.status === 'post') {
-                    clearInterval(timerInterval);
-                    timerInterval = null;
-                    timerMain.innerText = "FIM DE JOGO";
-                    timerMain.style.fontSize = "1.3rem";
-                    timerAdded.classList.remove('show');
-                    return;
-                }
-
-                if (data.status === 'halftime' || data.clock === 'INT') {
-                    clearInterval(timerInterval);
-                    timerInterval = null;
-                    timerMain.innerText = "INTERVALO";
-                    timerMain.style.fontSize = "1.4rem";
-                    timerAdded.classList.remove('show');
-                    return;
-                }
+                // PARA O RELÓGIO CASO NÃO ESTEJA AO VIVO
+                if (data.status === 'post') { clearInterval(timerInterval); timerInterval = null; timerMain.innerText = "FIM DE JOGO"; timerMain.style.fontSize = "1.3rem"; timerAdded.classList.remove('show'); return; }
+                if (data.status === 'halftime' || data.clock === 'INT') { clearInterval(timerInterval); timerInterval = null; timerMain.innerText = "INTERVALO"; timerMain.style.fontSize = "1.4rem"; timerAdded.classList.remove('show'); return; }
+                if (data.status === 'pre') { clearInterval(timerInterval); timerInterval = null; timerMain.innerText = "PRÉ-JOGO"; timerMain.style.fontSize = "1.4rem"; timerAdded.classList.remove('show'); return; }
 
                 timerMain.style.fontSize = "2rem";
 
                 const period = data.period || 1;
-                if (period !== currentPeriod) {
-                    currentPeriod = period;
-                    totalSeconds = 0; 
-                    addedSeconds = 0;
-                    timerAdded.classList.remove('show');
-                }
+                if (period !== currentPeriod) { currentPeriod = period; totalSeconds = 0; addedSeconds = 0; timerAdded.classList.remove('show'); }
 
                 const apiMin = parseInt(String(data.clock).replace(/\D/g, '')) || 0;
                 const targetSec = apiMin * 60;
-
-                if (Math.abs(totalSeconds - targetSec) > 10 && targetSec <= 45 * 60) {
-                    totalSeconds = targetSec;
-                }
+                if (Math.abs(totalSeconds - targetSec) > 10 && targetSec <= 45 * 60) { totalSeconds = targetSec; }
                 startTimer();
             }
         });
 
         onValue(ref(db, 'tv/cartao'), (snap) => {
             const data = snap.val();
-            if (!data) {
-                cardHome.className = 'card-bar';
-                cardAway.className = 'card-bar';
-                return;
-            }
+            if (!data) { cardHome.className = 'card-bar'; cardAway.className = 'card-bar'; return; }
             const targetBar = (data.teamAbbr === homeTeam.innerText) ? cardHome : cardAway;
             targetBar.className = `card-bar ${data.tipo}`;
         });
