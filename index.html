@@ -75,7 +75,6 @@
         .log-item.warning { border-left-color: var(--warning); }
         .log-time { font-size: 0.75rem; color: #6b7280; display: block; margin-bottom: 4px; }
 
-        /* TELA DE LOADING E OVERLAY DO MODAL */
         .loading-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(17, 24, 39, 0.92); display: flex; justify-content: center; align-items: center; z-index: 9999; backdrop-filter: blur(10px); flex-direction: column; color: white; font-size: 1.2rem; font-weight: bold; }
         .loading-overlay.hidden { display: none; }
         .spinner { border: 5px solid rgba(255,255,255,0.2); border-top: 5px solid var(--secondary); border-radius: 50%; width: 50px; height: 50px; animation: spin 0.8s linear infinite; margin-bottom: 15px; }
@@ -134,7 +133,6 @@
         .toast { position: fixed; bottom: -60px; left: 50%; transform: translateX(-50%); background: var(--dark); color: white; padding: 12px 25px; border-radius: 50px; font-weight: bold; transition: bottom 0.3s; z-index: 1000; box-shadow: 0 10px 20px rgba(0,0,0,0.3);}
         .toast.show { bottom: 30px; }
         
-        /* Classe para desativar botão */
         .btn-disabled { opacity: 0.5; pointer-events: none; }
     </style>
 </head>
@@ -192,14 +190,13 @@
                 </div>
             </div>
 
-            <!-- NOVO PAINEL DE ESCALAÇÃO SEGURO -->
+            <!-- PAINEL AUTOMÁTICO DE ESCALAÇÃO -->
             <div class="card">
-                <div class="card-title">📋 Escalação (Live-Score API)</div>
-                <input type="text" id="live-score-id-input" class="modal-input" placeholder="Cole o Match ID da Live-Score" style="margin-bottom: 10px; font-size: 0.9rem;">
+                <div class="card-title">📋 Escalação Oficial</div>
                 <button class="btn btn-blue btn-full" id="btn-escalacao" onclick="solicitarEscalacao()">
-                    🔍 Buscar Escalação (1 Crédito)
+                    🔍 Puxar Escalação (1 Crédito)
                 </button>
-                <small id="escalacao-timer-info" style="display:block; margin-top: 8px; color: #666; font-size: 0.8rem; text-align: center;">Aguardando seleção do jogo...</small>
+                <small id="escalacao-timer-info" style="display:block; margin-top: 8px; color: #666; font-size: 0.85rem; text-align: center; font-weight: 600;">Aguardando seleção do jogo...</small>
             </div>
 
             <div class="card">
@@ -302,7 +299,7 @@
         const datePickerBar = document.getElementById('date-picker-bar');
 
         function gerarCalendarioVisual() {
-            if (!datePickerBar) return; // Evita Crash caso o HTML seja copiado sem essa div
+            if (!datePickerBar) return;
             datePickerBar.innerHTML = '';
             const btnTodos = document.createElement('div');
             btnTodos.className = `date-card ${dataFiltroSelecionada === 'TODOS' ? 'active' : ''}`;
@@ -329,7 +326,6 @@
             acordarServidorRender();
             if (lobbyOverlay) lobbyOverlay.classList.remove('hidden');
             gerarCalendarioVisual();
-            
             if (gamesList) gamesList.innerHTML = '<div style="text-align:center; padding: 20px; color: #888; font-weight:bold;">Carregando jogos...</div>';
             
             try {
@@ -371,8 +367,7 @@
                 contadorVisiveis++;
 
                 const dataFormatada = dataDoJogoObj.toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit'});
-                let statusLabel = '';
-                let statusClass = '';
+                let statusLabel = ''; let statusClass = '';
 
                 if(estado === 'pre') { statusLabel = dataDoJogoObj.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'}); statusClass = 'status-pre'; } 
                 else if (estado === 'in') { statusLabel = evento.status.displayClock || "AO VIVO"; statusClass = 'status-in'; } 
@@ -382,7 +377,6 @@
                 btn.className = 'game-btn';
                 btn.innerHTML = `<div><span class="game-league-tag">${evento.nomeLiga}</span><div class="game-teams">${timeCasa} <span style="color:#cbd5e1; font-weight:normal;">x</span> ${timeFora}</div></div><div class="game-info-col"><span class="game-date">${dataFormatada}</span><span class="game-status ${statusClass}">${statusLabel}</span></div>`;
                 
-                // CORREÇÃO GIGANTE: Envia o objeto inteiro "evento", e não mais parâmetros quebrados!
                 btn.onclick = () => selecionarAlvo(evento);
                 gamesList.appendChild(btn);
             });
@@ -401,23 +395,23 @@
         window.selecionarAlvo = async function(evento) {
             fecharLobby();
             
-            // Corrige o erro que travava a interface
             const comp = evento.competitions[0];
             const timeCasa = comp.competitors.find(c => c.homeAway === 'home').team.name;
             const timeFora = comp.competitors.find(c => c.homeAway === 'away').team.name;
             const label = `${timeCasa} x ${timeFora}`;
 
+            jogoSelecionadoAtual = { home: timeCasa, away: timeFora, date: evento.date };
+
             await remove(ref(db, 'tv/logs'));
             await remove(ref(db, 'tv/cartao'));
             
-            // Salva a DATA oficial da ESPN no Firebase para liberar a escalação
-            await set(ref(db, 'tv/config'), { tipo: 'id', alvo: evento.id, label: label, urlLiga: evento.urlLiga, gameDate: evento.date, timestamp: Date.now() });
+            await set(ref(db, 'tv/config'), { tipo: 'id', alvo: evento.id, label: label, urlLiga: evento.urlLiga, home: timeCasa, away: timeFora, gameDate: evento.date, timestamp: Date.now() });
             
             headerTargetLabel.innerText = label;
+            verificarTempoParaEscalacao();
             mostrarToast(`Configurado: ${label}`);
         }
 
-        // LÓGICA DE VALIDAÇÃO DE ESCALAÇÃO
         function verificarTempoParaEscalacao() {
             const btn = document.getElementById('btn-escalacao');
             const info = document.getElementById('escalacao-timer-info');
@@ -435,50 +429,43 @@
 
             if (difMinutos <= 20) {
                 btn.classList.remove('btn-disabled');
-                info.innerText = "✅ Liberado!";
+                info.innerText = "✅ Liberado para puxar!";
             } else {
                 btn.classList.add('btn-disabled');
                 info.innerText = `🔒 Aguarde. Libera em ${Math.ceil(difMinutos - 20)} min.`;
             }
         }
 
-        // COMANDO DE BUSCAR ESCALAÇÃO MANUAL
         window.solicitarEscalacao = async function() {
-            const liveScoreId = document.getElementById('live-score-id-input').value.trim();
-            
-            if (!liveScoreId) {
-                mostrarToast("❌ Cole o Match ID da Live-Score primeiro!", "danger");
-                return;
-            }
+            if (!jogoSelecionadoAtual) return;
 
             mostrarToast("⏳ Puxando da API (1 Crédito)...");
             document.getElementById('btn-escalacao').classList.add('btn-disabled');
 
             try {
-                const response = await fetch(`${RENDER_URL}/escalacao?matchId=${liveScoreId}&gameDate=${jogoSelecionadoAtual.date}`);
+                const response = await fetch(`${RENDER_URL}/escalacao?home=${encodeURIComponent(jogoSelecionadoAtual.home)}&away=${encodeURIComponent(jogoSelecionadoAtual.away)}&gameDate=${jogoSelecionadoAtual.date}`);
                 const res = await response.json();
 
                 if (res.sucesso) {
                     mostrarToast(`🟢 ${res.mensagem}`);
                     console.log("⚽ LINEUP RECEBIDO:", res.dadosBrutos);
                 } else {
-                    mostrarToast(`🔴 Erro API: ${res.mensagem}`);
+                    mostrarToast(`🔴 ${res.mensagem}`);
                 }
             } catch (e) {
-                mostrarToast("❌ O Render não respondeu.");
+                mostrarToast("❌ Erro ao conectar com o servidor.");
             } finally {
                 verificarTempoParaEscalacao();
             }
         }
 
-        // RECUPERA CONFIGURAÇÃO ATIVA AO RECARREGAR A PÁGINA
         onValue(ref(db, 'tv/config'), (snap) => {
             const config = snap.val();
             if(!config) {
                 if(headerTargetLabel) headerTargetLabel.innerText = "Nenhum alvo definido";
             } else {
                 if(headerTargetLabel) headerTargetLabel.innerText = config.label || "Alvo Ativo";
-                jogoSelecionadoAtual = { date: config.gameDate }; // Restaura a data para liberar o botão
+                jogoSelecionadoAtual = { home: config.home, away: config.away, date: config.gameDate };
                 verificarTempoParaEscalacao();
             }
         });
@@ -521,15 +508,6 @@
                 div.innerHTML = `<span class="log-time">${timeStr}</span>${data.mensagem}`;
                 logsArea.insertBefore(div, logsArea.firstChild);
             });
-        });
-
-        onValue(ref(db, 'tv/debug'), (snap) => {
-            const data = snap.val();
-            if (!data) return;
-            console.log("=========================================");
-            console.log("🛠️ [F12 BACKEND INFO] O que o Render está vendo agora:");
-            console.log("-> Alvo:", data.alvoBuscado, "| Status:", data.jogoAchado);
-            console.log("=========================================");
         });
 
         const modal = document.getElementById('modal'); const modalBody = document.getElementById('modal-body'); const btnConfirm = document.getElementById('modal-confirm');
