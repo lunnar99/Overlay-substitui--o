@@ -31,15 +31,8 @@ export async function buscarERodarJogo() {
             ultimoAlvoId = config.alvo;
         }
 
-        // CORREÇÃO DO FUSO HORÁRIO: Volta 3 dias para garantir que pegue o jogo indepedente de UTC
-        const date = new Date();
-        date.setDate(date.getDate() - 3); 
-        const yyyy = date.getFullYear();
-        const mm = String(date.getMonth() + 1).padStart(2, '0');
-        const dd = String(date.getDate()).padStart(2, '0');
-        const datesParam = `?dates=${yyyy}${mm}${dd}-${yyyy+1}1231`;
-
-        let urlsParaBuscar = config.urlLiga ? [`${config.urlLiga}${datesParam}`] : LIGAS_DEFAULT.map(u => `${u}${datesParam}`);
+        // SEM PARÂMETROS DE DATA COMPLEXOS QUE QUEBRAM A ESPN
+        let urlsParaBuscar = LIGAS_DEFAULT;
 
         let todosEventos = [];
         for (const url of urlsParaBuscar) {
@@ -62,12 +55,11 @@ export async function buscarERodarJogo() {
             }
         }
 
-        // ENVIANDO DEBUG PARA O F12 DO NAVEGADOR
+        // DEBUG NO CONSOLE
         await atualizarFirebase('tv/debug', { 
             alvoBuscado: config.alvo, 
-            urlsConsultadas: urlsParaBuscar, 
             jogosEncontradosNaAPI: todosEventos.length, 
-            jogoAchado: jogoEncontrado ? `${jogoEncontrado.name} (${jogoEncontrado.status.type.state})` : "NÃO ACHOU (Verifique URLs/Fuso)", 
+            jogoAchado: jogoEncontrado ? `${jogoEncontrado.name} (${jogoEncontrado.status.type.state})` : "NÃO ACHOU NA LISTA ATUAL", 
             timestamp: Date.now() 
         });
 
