@@ -306,14 +306,9 @@
             jogosCarregados = [];
 
             try {
-                const date = new Date();
-                const yyyy = date.getFullYear();
-                const mm = String(date.getMonth() + 1).padStart(2, '0');
-                const dd = String(date.getDate()).padStart(2, '0');
-                const datesParam = `?dates=${yyyy}${mm}${dd}-${yyyy}1231`;
-
+                // CONSULTA LIMPA SEM PARÂMETROS QUE SUCUMBEM A API
                 const requisicoes = LIGAS.map(liga => 
-                    fetch(`${liga.url}${datesParam}`)
+                    fetch(liga.url)
                         .then(r => r.json())
                         .then(d => (d.events || []).map(e => ({ ...e, nomeLiga: liga.nome, urlLiga: liga.url })))
                         .catch(() => [])
@@ -322,7 +317,9 @@
                 const resultados = await Promise.all(requisicoes);
                 jogosCarregados = resultados.flat();
                 jogosCarregados.sort((a, b) => new Date(a.date) - new Date(b.date));
+
                 renderizarJogos();
+
             } catch (error) {
                 gamesList.innerHTML = '<div style="text-align:center; padding: 20px; color: var(--danger);">Erro ao carregar lista de jogos.</div>';
             }
