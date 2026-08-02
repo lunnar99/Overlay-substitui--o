@@ -71,7 +71,7 @@
         .log-item.warning { border-left-color: var(--warning); }
         .log-time { font-size: 0.75rem; color: #6b7280; display: block; margin-bottom: 4px; }
 
-        /* MODAL E CALENDÁRIO ESTILIZADO */
+        /* MODAL E CALENDÁRIO */
         .lobby-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(17, 24, 39, 0.95); display: flex; justify-content: center; align-items: center; z-index: 200; backdrop-filter: blur(10px); flex-direction: column; padding: 20px;}
         .lobby-overlay.hidden { display: none; }
         
@@ -79,7 +79,6 @@
         .lobby-header { background: var(--primary); color: white; padding: 20px; text-align: center; }
         .lobby-header h2 { margin: 0; font-size: 1.4rem; font-weight: 900; letter-spacing: 1px; }
 
-        /* Filtro Visual de Dias (Calendário Personalizado) */
         .date-picker-bar { display: flex; gap: 10px; overflow-x: auto; padding: 15px 20px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; }
         .date-picker-bar::-webkit-scrollbar { height: 4px; }
         .date-picker-bar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
@@ -136,10 +135,7 @@
                 <h2>SELEÇÃO DE TRANSMISSÃO</h2>
             </div>
 
-            <!-- Calendário Visual de Dias -->
-            <div class="date-picker-bar" id="date-picker-bar">
-                <!-- Dias gerados via JS -->
-            </div>
+            <div class="date-picker-bar" id="date-picker-bar"></div>
             
             <div class="lobby-filter-bar">
                 <input type="text" class="filter-input" id="filter-search" placeholder="Buscar por time...">
@@ -259,7 +255,6 @@
         const btnFilterCruzeiro = document.getElementById('btn-filter-cruzeiro');
         const datePickerBar = document.getElementById('date-picker-bar');
 
-        // GERAÇÃO DO CALENDÁRIO VISUAL ESTILIZADO
         function gerarCalendarioVisual() {
             datePickerBar.innerHTML = '';
             
@@ -276,7 +271,7 @@
                 
                 const dayName = d.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '');
                 const dayNum = d.getDate();
-                const keyDate = d.toISOString().split('T')[0]; // YYYY-MM-DD
+                const keyDate = d.toISOString().split('T')[0];
 
                 const card = document.createElement('div');
                 card.className = `date-card ${dataFiltroSelecionada === keyDate ? 'active' : ''}`;
@@ -286,11 +281,10 @@
             }
         }
 
-        // BUSCA E ORDENAÇÃO POR DATA E HORÁRIO
         window.abrirLobby = async function() {
             lobbyOverlay.classList.remove('hidden');
             gerarCalendarioVisual();
-            gamesList.innerHTML = '<div style="text-align:center; padding: 20px; color: #888; font-weight:bold;">Carregando jogos em ordem cronológica...</div>';
+            gamesList.innerHTML = '<div style="text-align:center; padding: 20px; color: #888; font-weight:bold;">Carregando jogos...</div>';
             jogosCarregados = [];
 
             try {
@@ -309,8 +303,6 @@
 
                 const resultados = await Promise.all(requisicoes);
                 jogosCarregados = resultados.flat();
-
-                // ORDENAÇÃO CRONOLÓGICA (Mais próximos primeiro)
                 jogosCarregados.sort((a, b) => new Date(a.date) - new Date(b.date));
 
                 renderizarJogos();
@@ -327,8 +319,6 @@
 
             jogosCarregados.forEach(evento => {
                 const estado = evento.status.type.state; 
-                
-                // MANTÉM OCULTO APENAS JOGOS ENCERRADOS HÁ MAIS DE UM DIA
                 const comp = evento.competitions[0];
                 const timeCasa = comp.competitors.find(c => c.homeAway === 'home').team.name;
                 const timeFora = comp.competitors.find(c => c.homeAway === 'away').team.name;
@@ -336,7 +326,6 @@
                 const dataDoJogoObj = new Date(evento.date);
                 const isoDate = dataDoJogoObj.toISOString().split('T')[0];
 
-                // FILTROS
                 if (dataFiltroSelecionada !== 'TODOS' && isoDate !== dataFiltroSelecionada) return;
                 if (apenasCruzeiroFiltro && !matchName.includes('cruzeiro')) return;
                 if (termoBusca && !matchName.includes(termoBusca)) return;
@@ -390,10 +379,17 @@
         window.fecharLobby = () => lobbyOverlay.classList.add('hidden');
 
         window.selecionarAlvo = async function(idJogo, label, urlLiga) {
+            // LIMPA LOGS E ESTADOS ANTIGOS NO FIREBASE AO TROCAR DE JOGO
             await remove(ref(db, 'tv/logs'));
+            await remove(ref(db, 'tv/cartao'));
+            
             await set(ref(db, 'tv/config'), { 
                 tipo: 'id', alvo: idJogo, label: label, urlLiga: urlLiga, timestamp: Date.now() 
             });
+
+            // ATUALIZA IMEDIATAMENTE O CABEÇALHO DO PAINEL
+            headerTargetLabel.innerText = label;
+
             mostrarToast(`Configurado para: ${label}`);
             fecharLobby();
         }
@@ -415,9 +411,6 @@
         });
 
         // ESPELHO DE FEEDBACK VISUAL DO PAINEL
-        let mirrorSec = 0;
-        let mirrorInterval = null;
-
         onValue(ref(db, 'tv/placar'), (snap) => {
             const data = snap.val();
             if(!data) return;
@@ -432,7 +425,6 @@
                 home.innerText = "OFF"; away.innerText = "OFF";
                 scoreHome.innerText = "-"; scoreAway.innerText = "-";
                 time.innerText = "00:00";
-                clearInterval(mirrorInterval);
             } else {
                 home.innerText = data.homeAbbr || "CASA";
                 away.innerText = data.awayAbbr || "FORA";
@@ -441,13 +433,10 @@
 
                 if (data.status === 'post') {
                     time.innerText = "FIM DE JOGO";
-                    clearInterval(mirrorInterval);
                 } else if (data.status === 'halftime' || data.clock === 'INT') {
                     time.innerText = "INTERVALO";
-                    clearInterval(mirrorInterval);
                 } else {
-                    const min = parseInt(String(data.clock).replace(/\D/g, '')) || 0;
-                    time.innerText = `${String(min).padStart(2, '0')}:00`;
+                    time.innerText = data.clock || "00:00";
                 }
             }
         });
@@ -471,7 +460,7 @@
 
         window.abrirModalTeste = function(tipo) {
             document.getElementById('modal-title').innerText = `Simular ${tipo.toUpperCase()}`;
-            let html = `<input type="text" id="teste-time" class="modal-input" placeholder="Sigla do Time (Ex: VAS, FLU)">`;
+            let html = `<input type="text" id="teste-time" class="modal-input" placeholder="Sigla do Time (Ex: CAM, JUV)">`;
             
             if (tipo === 'gol' || tipo === 'cartao') {
                 html += `<input type="text" id="teste-jogador" class="modal-input" placeholder="Nome do Jogador">`;
@@ -518,7 +507,7 @@
         window.enviarComandoPlacar = async (acao) => {
             let payload = { acao: acao, status: acao, timestamp: Date.now() };
             if(acao === 'start') {
-                payload = { ...payload, status: 'in', homeAbbr: 'VAS', awayAbbr: 'FLU', homeScore: 0, awayScore: 0, clock: "00:00" };
+                payload = { ...payload, status: 'in', homeAbbr: 'CAM', awayAbbr: 'JUV', homeScore: 0, awayScore: 0, clock: "00:00" };
             }
             await set(ref(db, 'tv/placar'), payload);
             mostrarToast(`Placar atualizado para: ${acao.toUpperCase()}`);
