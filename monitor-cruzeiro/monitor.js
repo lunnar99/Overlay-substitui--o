@@ -10,33 +10,16 @@ const eventosEnviados = new Set();
 let ultimoAlvoId = '';
 
 async function atualizarFirebase(endpoint, payload) {
-    try { 
-        await fetch(`${FIREBASE_DB_URL}/${endpoint}.json`, { 
-            method: 'PUT', 
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ...payload, timestamp: Date.now() }) 
-        }); 
-    } catch (e) {}
+    try { await fetch(`${FIREBASE_DB_URL}/${endpoint}.json`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...payload, timestamp: Date.now() }) }); } catch (e) {}
 }
 
 async function registrarLog(mensagem, tipo = 'info') {
-    try {
-        console.log(`[LOG] ${mensagem}`);
-        await fetch(`${FIREBASE_DB_URL}/tv/logs.json`, { 
-            method: 'POST', 
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ mensagem, tipo, timestamp: Date.now() }) 
-        });
-    } catch (e) {}
+    try { await fetch(`${FIREBASE_DB_URL}/tv/logs.json`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mensagem, tipo, timestamp: Date.now() }) }); } catch (e) {}
 }
 
 async function lerConfiguracaoAlvo() {
-    try {
-        const res = await fetch(`${FIREBASE_DB_URL}/tv/config.json`);
-        return await res.json() || { tipo: 'time', alvo: 'Cruzeiro' }; 
-    } catch (e) {
-        return { tipo: 'time', alvo: 'Cruzeiro' };
-    }
+    try { const res = await fetch(`${FIREBASE_DB_URL}/tv/config.json`); return await res.json() || { tipo: 'time', alvo: 'Cruzeiro' }; } 
+    catch (e) { return { tipo: 'time', alvo: 'Cruzeiro' }; }
 }
 
 export async function buscarERodarJogo() {
@@ -61,46 +44,40 @@ export async function buscarERodarJogo() {
             try {
                 const res = await fetch(url);
                 const data = await res.json();
-                if (data.events) todosEventos.push(...data.events);
+                if (data.events) {
+                    // Extrai a liga dinamicamente da URL ou do retorno para montar o URL do summary depois
+                    const slugLiga = data.leagues?.[0]?.slug || (url.includes('copa_do_brazil') ? 'bra.copa_do_brazil' : 'bra.1');
+                    data.events.forEach(e => { e.slugDaLigaParaBusca = slugLiga; todosEventos.push(e); });
+                }
             } catch (err) {}
         }
 
         let jogoEncontrado = null;
-
         for (const evento of todosEventos) {
-            if (config.tipo === 'id' && String(evento.id) === String(config.alvo)) {
-                jogoEncontrado = evento;
-                break;
-            } else if (config.tipo === 'time') {
-                const competidores = evento.competitions[0].competitors;
-                const nomes = competidores.map(c => c.team.name.toLowerCase());
-                if (nomes.some(n => n.includes(config.alvo.toLowerCase()))) {
-                    jogoEncontrado = evento;
-                    break;
-                }
+            if (config.tipo === 'id' && String(evento.id) === String(config.alvo)) { jogoEncontrado = evento; break; } 
+            else if (config.tipo === 'time') {
+                const nomes = evento.competitions[0].competitors.map(c => c.team.name.toLowerCase());
+                if (nomes.some(n => n.includes(config.alvo.toLowerCase()))) { jogoEncontrado = evento; break; }
             }
         }
 
-        if (!jogoEncontrado) {
-            await atualizarFirebase('tv/placar', { status: 'off' });
-            return 10000; 
-        }
+        if (!jogoEncontrado) { await atualizarFirebase('tv/placar', { status: 'off' }); return 10000; }
 
         const comp = jogoEncontrado.competitions[0];
-        const competidores = comp.competitors;
-        const timeCasa = competidores.find(c => c.homeAway === 'home');
-        const timeFora = competidores.find(c => c.homeAway === 'away');
-        
-        const statusType = comp.status?.type?.name || '';
+        const timeCasa = comp.competitors.find(c => c.homeAway === 'home');
+        const timeFora = comp.competitors.find(c => c.homeAway === 'away');
         const estadoJogo = comp.status?.type?.state || 'pre'; 
-        const periodoAtual = comp.status?.period || 1;
+        const isHalftime = comp.status?.type?.name === 'STATUS_HALFTIME' || comp.status?.type?.detail === 'HT';
 
-        const isHalftime = statusType === 'STATUS_HALFTIME' || comp.status?.type?.detail === 'HT';
-
-        if (estadoJogo === 'in' || estadoJogo === 'pre') {
-            const relogioExibicao = comp.status?.displayClock || "00:00";
-            const clockParts = relogioExibicao.split('+');
-            const relogio = clockParts[0].replace(/'/g, ''); 
+        // 1. JOGO PRÉ-JOGO (MANDA STATUS 'pre' PARA NÃO RODAR TIMER)
+        if (estadoJogo === 'pre') {
+            await atualizarFirebase('tv/placar', { status: 'pre', homeAbbr: timeCasa.team.abbreviation, awayAbbr: timeFora.team.abbreviation, homeScore: 0, awayScore: 0, clock: 'PRÉ-JOGO', period: 1 });
+            return 10000;
+        }
+        
+        // 2. JOGO AO VIVO
+        else if (estadoJogo === 'in') {
+            const relogio = (comp.status?.displayClock || "00:00").split('+')[0].replace(/'/g, ''); 
 
             await atualizarFirebase('tv/placar', {
                 status: isHalftime ? 'halftime' : 'in',
@@ -109,10 +86,12 @@ export async function buscarERodarJogo() {
                 homeScore: parseInt(timeCasa.score) || 0,
                 awayScore: parseInt(timeFora.score) || 0,
                 clock: isHalftime ? 'INT' : relogio,
-                period: periodoAtual
+                period: comp.status?.period || 1
             });
 
-            const summaryApiUrl = `https://site.api.espn.com/apis/site/v2/sports/soccer/bra.1/summary?event=${jogoEncontrado.id}`;
+            // USO DINÂMICO DA LIGA PARA NÃO QUEBRAR COPA DO BRASIL
+            const slugFinal = jogoEncontrado.slugDaLigaParaBusca || 'bra.1';
+            const summaryApiUrl = `https://site.api.espn.com/apis/site/v2/sports/soccer/${slugFinal}/summary?event=${jogoEncontrado.id}`;
             try {
                 const summaryRes = await fetch(summaryApiUrl);
                 const summary = await summaryRes.json();
@@ -121,39 +100,21 @@ export async function buscarERodarJogo() {
                     const idUnico = `${jogoEncontrado.id}_${evento.id}`;
                     if (eventosEnviados.has(idUnico)) return;
 
-                    const teamID = evento.team?.id;
-                    const siglaTime = (teamID === timeCasa.team.id) ? timeCasa.team.abbreviation : timeFora.team.abbreviation;
+                    const siglaTime = (evento.team?.id === timeCasa.team.id) ? timeCasa.team.abbreviation : timeFora.team.abbreviation;
                     const tipoTexto = evento.type?.text?.toLowerCase() || '';
 
                     if (tipoTexto.includes('substitution') || evento.type?.id === '80') {
-                        const jogadorEntra = evento.participants?.[0]?.athlete?.displayName || 'Jogador Entra';
-                        const jogadorSai = evento.participants?.[1]?.athlete?.displayName || 'Jogador Sai';
-
-                        atualizarFirebase('substituicao', {
-                            team: siglaTime,
-                            out: { nome: jogadorSai, num: evento.participants?.[1]?.athlete?.jersey || '--' },
-                            in: { nome: jogadorEntra, num: evento.participants?.[0]?.athlete?.jersey || '--' },
-                            hide: false
-                        });
-
-                        registrarLog(`🔄 Substituição (${siglaTime}): Entra ${jogadorEntra} / Sai ${jogadorSai}`, 'info');
+                        atualizarFirebase('substituicao', { team: siglaTime, out: { nome: evento.participants?.[1]?.athlete?.displayName || 'X', num: '--' }, in: { nome: evento.participants?.[0]?.athlete?.displayName || 'Y', num: '--' }, hide: false });
+                        registrarLog(`🔄 Substituição (${siglaTime})`, 'info');
                         eventosEnviados.add(idUnico);
-                    }
-                    else if (evento.type?.id === '1') { 
-                        const jogador = evento.participants?.[0]?.athlete?.displayName || 'Jogador';
-                        const numero = evento.participants?.[0]?.athlete?.jersey || '--';
-
-                        atualizarFirebase('tv/gol', { teamAbbr: siglaTime, jogador, numero });
-                        registrarLog(`⚽ GOL! ${jogador} (${siglaTime})`, 'success');
+                    } else if (evento.type?.id === '1') { 
+                        atualizarFirebase('tv/gol', { teamAbbr: siglaTime, jogador: evento.participants?.[0]?.athlete?.displayName || 'GOL', numero: '--' });
+                        registrarLog(`⚽ GOL! (${siglaTime})`, 'success');
                         eventosEnviados.add(idUnico);
-                    }
-                    else if (tipoTexto.includes('card')) { 
-                        const jogador = evento.participants?.[0]?.athlete?.displayName || 'Jogador';
-                        const numero = evento.participants?.[0]?.athlete?.jersey || '--';
-                        const corCartao = tipoTexto.includes('red') ? 'vermelho' : 'amarelo';
-                        
-                        atualizarFirebase('tv/cartao', { teamAbbr: siglaTime, jogador, numero, tipo: corCartao });
-                        registrarLog(`🟨 Cartão ${corCartao.toUpperCase()}: ${jogador} (${siglaTime})`, 'warning');
+                    } else if (tipoTexto.includes('card')) { 
+                        const cor = tipoTexto.includes('red') ? 'vermelho' : 'amarelo';
+                        atualizarFirebase('tv/cartao', { teamAbbr: siglaTime, jogador: evento.participants?.[0]?.athlete?.displayName || 'Card', numero: '--', tipo: cor });
+                        registrarLog(`🟨 Cartão ${cor.toUpperCase()} (${siglaTime})`, 'warning');
                         eventosEnviados.add(idUnico);
                     }
                 });
@@ -161,18 +122,10 @@ export async function buscarERodarJogo() {
 
             return 10000;
         } 
+        
+        // 3. JOGO ENCERRADO
         else if (estadoJogo === 'post') {
-            await atualizarFirebase('tv/placar', {
-                status: 'post',
-                homeAbbr: timeCasa.team.abbreviation,
-                awayAbbr: timeFora.team.abbreviation,
-                homeScore: parseInt(timeCasa.score) || 0,
-                awayScore: parseInt(timeFora.score) || 0,
-                clock: 'FIM DE JOGO'
-            });
-            return 30000;
-        } else {
-            await atualizarFirebase('tv/placar', { status: 'off' });
+            await atualizarFirebase('tv/placar', { status: 'post', homeAbbr: timeCasa.team.abbreviation, awayAbbr: timeFora.team.abbreviation, homeScore: parseInt(timeCasa.score) || 0, awayScore: parseInt(timeFora.score) || 0, clock: 'FIM DE JOGO' });
             return 30000;
         }
 
@@ -182,13 +135,6 @@ export async function buscarERodarJogo() {
     }
 }
 
-async function start() {
-    let timeout = await buscarERodarJogo();
-    setTimeout(start, timeout);
-}
-
+async function start() { let timeout = await buscarERodarJogo(); setTimeout(start, timeout); }
 const PORT = process.env.PORT || 10000;
-http.createServer((req, res) => { res.writeHead(200); res.end('Monitor Ativo'); }).listen(PORT, () => {
-    console.log(`Servidor rodando na porta ${PORT}`);
-    start();
-});
+http.createServer((req, res) => { res.writeHead(200); res.end('Monitor Ativo'); }).listen(PORT, () => { start(); });
