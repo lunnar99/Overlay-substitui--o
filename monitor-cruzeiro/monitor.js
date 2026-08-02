@@ -29,13 +29,11 @@ export async function buscarERodarJogo() {
         if (config.alvo !== ultimoAlvoId) {
             eventosEnviados.clear();
             ultimoAlvoId = config.alvo;
+            console.log(`[RENDER LOG] Novo Alvo Selecionado: ${config.alvo}`);
         }
 
-        // SEM PARÂMETROS DE DATA COMPLEXOS QUE QUEBRAM A ESPN
-        let urlsParaBuscar = LIGAS_DEFAULT;
-
         let todosEventos = [];
-        for (const url of urlsParaBuscar) {
+        for (const url of LIGAS_DEFAULT) {
             try {
                 const res = await fetch(url);
                 const data = await res.json();
@@ -55,7 +53,8 @@ export async function buscarERodarJogo() {
             }
         }
 
-        // DEBUG NO CONSOLE
+        console.log(`[RENDER LOG] Alvo: ${config.alvo} | Jogos Encontrados: ${todosEventos.length} | Status: ${jogoEncontrado ? jogoEncontrado.status.type.state : 'NÃO ACHOU'}`);
+
         await atualizarFirebase('tv/debug', { 
             alvoBuscado: config.alvo, 
             jogosEncontradosNaAPI: todosEventos.length, 
@@ -135,4 +134,4 @@ export async function buscarERodarJogo() {
 
 async function start() { let timeout = await buscarERodarJogo(); setTimeout(start, timeout); }
 const PORT = process.env.PORT || 10000;
-http.createServer((req, res) => { res.writeHead(200); res.end('Monitor Ativo'); }).listen(PORT, () => { start(); });
+http.createServer((req, res) => { res.writeHead(200); res.end('Monitor Ativo'); }).listen(PORT, () => { console.log(`[RENDER LOG] Servidor rodando na porta ${PORT}`); start(); });
