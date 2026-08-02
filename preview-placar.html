@@ -16,13 +16,8 @@
             background: #111; padding: 5px 20px; border-radius: 8px;
         }
 
-        /* Container do Time com Traço de Cartão */
-        .team-box {
-            display: flex; flex-direction: column; align-items: center; position: relative; padding-top: 6px;
-        }
-        .card-bar {
-            position: absolute; top: 0; width: 100%; height: 4px; border-radius: 2px; display: none;
-        }
+        .team-box { display: flex; flex-direction: column; align-items: center; position: relative; padding-top: 6px; }
+        .card-bar { position: absolute; top: 0; width: 100%; height: 4px; border-radius: 2px; display: none; }
         .card-bar.amarelo { background: #f59e0b; display: block; box-shadow: 0 0 8px #f59e0b; }
         .card-bar.vermelho { background: #ef4444; display: block; box-shadow: 0 0 8px #ef4444; }
 
@@ -31,8 +26,7 @@
         .divider { color: #555; font-size: 1.5rem; }
         .team-cruzeiro { color: #3b82f6; }
 
-        /* Timer MM:SS e Acréscimo */
-        .clock-container { display: flex; align-items: center; gap: 8px; font-size: 2rem; font-weight: 900; }
+        .clock-container { display: flex; align-items: center; gap: 8px; font-size: 2rem; font-weight: 900; min-width: 140px; justify-content: center; }
         .added-timer {
             background: #eab308; color: #000; font-size: 1.3rem; font-weight: 900;
             padding: 2px 8px; border-radius: 6px; display: none;
@@ -86,27 +80,31 @@
         const cardHome = document.getElementById('card-home');
         const cardAway = document.getElementById('card-away');
 
-        let mainSeconds = 0;
+        let totalSeconds = 0;
         let addedSeconds = 0;
         let timerInterval = null;
         let currentPeriod = 1;
 
-        function formatTime(totalSec) {
-            const m = String(Math.floor(totalSec / 60)).padStart(2, '0');
-            const s = String(totalSec % 60).padStart(2, '0');
+        function colorirCruzeiro(el, sigla) {
+            if(sigla === 'CRU') el.classList.add('team-cruzeiro');
+            else el.classList.remove('team-cruzeiro');
+        }
+
+        function formatTime(sec) {
+            const m = String(Math.floor(sec / 60)).padStart(2, '0');
+            const s = String(sec % 60).padStart(2, '0');
             return `${m}:${s}`;
         }
 
-        function startLocalTimer() {
+        function startTimer() {
             if (timerInterval) return;
             timerInterval = setInterval(() => {
-                const maxSec = 45 * 60; // 45 min por tempo
-                if (mainSeconds < maxSec) {
-                    mainSeconds++;
-                    timerMain.innerText = formatTime(mainSeconds);
+                const limitSec = 45 * 60; 
+                if (totalSeconds < limitSec) {
+                    totalSeconds++;
+                    timerMain.innerText = formatTime(totalSeconds);
                 } else {
-                    // Trava o principal aos 45 min e incrementa o acréscimo
-                    timerMain.innerText = formatTime(maxSec);
+                    timerMain.innerText = formatTime(limitSec);
                     addedSeconds++;
                     timerAdded.innerText = `+${formatTime(addedSeconds)}`;
                     timerAdded.classList.add('show');
@@ -114,24 +112,8 @@
             }, 1000);
         }
 
-        function syncTimerWithAPI(apiMinutes, period) {
-            if (period !== currentPeriod) {
-                currentPeriod = period;
-                mainSeconds = 0; // Reseta para 00:00 no 2º tempo
-                addedSeconds = 0;
-                timerAdded.classList.remove('show');
-            }
-
-            const apiSec = apiMinutes * 60;
-            // Alinha o timer local se a divergência for maior que 10s
-            if (Math.abs(mainSeconds - apiSec) > 10 && apiSec <= 45 * 60) {
-                mainSeconds = apiSec;
-            }
-            startLocalTimer();
-        }
-
         function setModo(modo) {
-            if(modo === 'in' || modo === 'start' || modo === 'halftime') {
+            if(modo === 'in' || modo === 'start' || modo === 'halftime' || modo === 'post') {
                 statusDisplay.style.display = 'none';
                 matchDisplay.style.display = 'flex';
                 clockDisplay.style.display = 'flex';
@@ -145,7 +127,6 @@
             }
         }
 
-        // LEITURA DO FIREBASE
         onValue(ref(db, 'tv/placar'), (snap) => {
             const data = snap.val();
             if (!data) return;
@@ -157,27 +138,57 @@
                 
                 homeTeam.innerText = data.homeAbbr || "CASA";
                 awayTeam.innerText = data.awayAbbr || "FORA";
+                colorirCruzeiro(homeTeam, data.homeAbbr);
+                colorirCruzeiro(awayTeam, data.awayAbbr);
+
                 homeScore.innerText = data.homeScore ?? 0;
                 awayScore.innerText = data.awayScore ?? 0;
+
+                if (data.status === 'post') {
+                    clearInterval(timerInterval);
+                    timerInterval = null;
+                    timerMain.innerText = "FIM DE JOGO";
+                    timerMain.style.fontSize = "1.3rem";
+                    timerAdded.classList.remove('show');
+                    return;
+                }
 
                 if (data.status === 'halftime' || data.clock === 'INT') {
                     clearInterval(timerInterval);
                     timerInterval = null;
                     timerMain.innerText = "INTERVALO";
+                    timerMain.style.fontSize = "1.4rem";
                     timerAdded.classList.remove('show');
                     return;
                 }
 
+                timerMain.style.fontSize = "2rem";
+
+                const period = data.period || 1;
+                if (period !== currentPeriod) {
+                    currentPeriod = period;
+                    totalSeconds = 0; 
+                    addedSeconds = 0;
+                    timerAdded.classList.remove('show');
+                }
+
                 const apiMin = parseInt(String(data.clock).replace(/\D/g, '')) || 0;
-                syncTimerWithAPI(apiMin, data.period || 1);
+                const targetSec = apiMin * 60;
+
+                if (Math.abs(totalSeconds - targetSec) > 10 && targetSec <= 45 * 60) {
+                    totalSeconds = targetSec;
+                }
+                startTimer();
             }
         });
 
-        // LEITURA DE CARTÕES PARA OS TRAÇOS VISUAIS
         onValue(ref(db, 'tv/cartao'), (snap) => {
             const data = snap.val();
-            if (!data) return;
-            
+            if (!data) {
+                cardHome.className = 'card-bar';
+                cardAway.className = 'card-bar';
+                return;
+            }
             const targetBar = (data.teamAbbr === homeTeam.innerText) ? cardHome : cardAway;
             targetBar.className = `card-bar ${data.tipo}`;
         });
