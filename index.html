@@ -492,6 +492,21 @@
         window.fecharModalTeste = () => modal.classList.remove('active');
         window.enviarComandoPlacar = async (acao) => { await set(ref(db, 'tv/placar'), { acao: acao, status: acao, timestamp: Date.now() }); mostrarToast(`Placar: ${acao.toUpperCase()}`); };
         function mostrarToast(msg) { const toast = document.getElementById('toast'); toast.innerText = msg; toast.classList.add('show'); setTimeout(() => toast.classList.remove('show'), 3000); }
+
+        // ---------------------------------------------------------
+        // PONTE DE DEBUG DO SERVIDOR PARA O F12
+        // ---------------------------------------------------------
+        onValue(ref(db, 'tv/debug'), (snap) => {
+            const data = snap.val();
+            if (!data) return;
+            console.log("=========================================");
+            console.log("🛠️ [F12 BACKEND INFO] O que o Render está vendo agora:");
+            console.log("-> Alvo Buscado:", data.alvoBuscado);
+            console.log("-> Total de Jogos Baixados da API:", data.jogosEncontradosNaAPI);
+            console.log("-> Status do Alvo:", data.jogoAchado);
+            console.log("-> URLs que ele consultou:", data.urlsConsultadas);
+            console.log("=========================================");
+        });
     </script>
 </body>
 </html>
