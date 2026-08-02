@@ -56,6 +56,10 @@
         .visual-title { position: absolute; top: 15px; left: 15px; font-size: 0.8rem; color: #aaa; font-weight: bold; text-transform: uppercase; }
         
         .mirror-placar { display: flex; align-items: center; gap: 20px; font-size: 2.5rem; font-weight: 900; font-family: 'Arial Black', sans-serif; }
+        .team-box { display: flex; flex-direction: column; align-items: center; position: relative; padding-top: 6px; }
+        .card-bar { position: absolute; top: 0; width: 100%; height: 4px; border-radius: 2px; display: none; }
+        .card-bar.amarelo { background: #f59e0b; display: block; box-shadow: 0 0 8px #f59e0b; }
+        .card-bar.vermelho { background: #ef4444; display: block; box-shadow: 0 0 8px #ef4444; }
         .mirror-team { background: #333; padding: 10px 20px; border-radius: 8px; }
         .mirror-score { color: var(--warning); }
         .mirror-time { font-size: 1.5rem; background: #222; padding: 5px 15px; border-radius: 5px; color: #aaa; }
@@ -71,10 +75,14 @@
         .log-item.warning { border-left-color: var(--warning); }
         .log-time { font-size: 0.75rem; color: #6b7280; display: block; margin-bottom: 4px; }
 
-        /* MODAL E CALENDÁRIO */
-        .lobby-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(17, 24, 39, 0.95); display: flex; justify-content: center; align-items: center; z-index: 200; backdrop-filter: blur(10px); flex-direction: column; padding: 20px;}
-        .lobby-overlay.hidden { display: none; }
+        /* MODAL DE SELEÇÃO E LOADING GLOBAL */
+        .lobby-overlay, .loading-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(17, 24, 39, 0.95); display: flex; justify-content: center; align-items: center; z-index: 200; backdrop-filter: blur(10px); flex-direction: column; padding: 20px;}
+        .lobby-overlay.hidden, .loading-overlay.hidden { display: none; }
         
+        .loading-overlay { z-index: 999; color: white; font-size: 1.5rem; font-weight: bold; }
+        .spinner { border: 6px solid rgba(255,255,255,0.3); border-top: 6px solid var(--secondary); border-radius: 50%; width: 60px; height: 60px; animation: spin 1s linear infinite; margin-bottom: 20px;}
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
         .lobby-card { background: white; width: 100%; max-width: 680px; border-radius: 16px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); }
         .lobby-header { background: var(--primary); color: white; padding: 20px; text-align: center; }
         .lobby-header h2 { margin: 0; font-size: 1.4rem; font-weight: 900; letter-spacing: 1px; }
@@ -121,13 +129,18 @@
         .modal-actions { display: flex; gap: 10px; margin-top: 15px; }
 
         @keyframes slideIn { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
-        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
         
         .toast { position: fixed; bottom: -60px; left: 50%; transform: translateX(-50%); background: var(--dark); color: white; padding: 12px 25px; border-radius: 50px; font-weight: bold; transition: bottom 0.3s; z-index: 1000; box-shadow: 0 10px 20px rgba(0,0,0,0.3);}
         .toast.show { bottom: 30px; }
     </style>
 </head>
 <body>
+
+    <!-- TELA DE LOADING GLOBAL -->
+    <div class="loading-overlay hidden" id="loading-overlay">
+        <div class="spinner"></div>
+        <div>Sincronizando com Servidor...</div>
+    </div>
 
     <div class="lobby-overlay" id="lobby-overlay">
         <div class="lobby-card">
@@ -191,11 +204,17 @@
             <div class="visual-feedback">
                 <div class="visual-title">🔴 Feedback Visual (TV)</div>
                 <div class="mirror-placar" id="mirror-placar">
-                    <span class="mirror-team" id="mirror-home">OFF</span>
+                    <div class="team-box">
+                        <div class="card-bar" id="card-home"></div>
+                        <span class="mirror-team" id="mirror-home">OFF</span>
+                    </div>
                     <span class="mirror-score" id="mirror-score-home">-</span>
                     <span>x</span>
                     <span class="mirror-score" id="mirror-score-away">-</span>
-                    <span class="mirror-team" id="mirror-away">OFF</span>
+                    <div class="team-box">
+                        <div class="card-bar" id="card-away"></div>
+                        <span class="mirror-team" id="mirror-away">OFF</span>
+                    </div>
                 </div>
                 <div class="mirror-time" style="margin-top: 15px;" id="mirror-time">00:00</div>
             </div>
@@ -247,8 +266,10 @@
         let jogosCarregados = [];
         let apenasCruzeiroFiltro = false;
         let dataFiltroSelecionada = "TODOS";
+        let isWaitingForServer = false;
 
         const lobbyOverlay = document.getElementById('lobby-overlay');
+        const loadingOverlay = document.getElementById('loading-overlay');
         const gamesList = document.getElementById('games-list');
         const headerTargetLabel = document.getElementById('header-target-label');
         const filterSearch = document.getElementById('filter-search');
@@ -257,7 +278,6 @@
 
         function gerarCalendarioVisual() {
             datePickerBar.innerHTML = '';
-            
             const btnTodos = document.createElement('div');
             btnTodos.className = `date-card ${dataFiltroSelecionada === 'TODOS' ? 'active' : ''}`;
             btnTodos.innerHTML = `<div class="day-name">GERAL</div><div class="day-num">TODOS</div>`;
@@ -268,11 +288,9 @@
             for (let i = 0; i < 7; i++) {
                 const d = new Date(hoje);
                 d.setDate(hoje.getDate() + i);
-                
                 const dayName = d.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '');
                 const dayNum = d.getDate();
                 const keyDate = d.toISOString().split('T')[0];
-
                 const card = document.createElement('div');
                 card.className = `date-card ${dataFiltroSelecionada === keyDate ? 'active' : ''}`;
                 card.innerHTML = `<div class="day-name">${dayName}</div><div class="day-num">${dayNum}</div>`;
@@ -304,9 +322,7 @@
                 const resultados = await Promise.all(requisicoes);
                 jogosCarregados = resultados.flat();
                 jogosCarregados.sort((a, b) => new Date(a.date) - new Date(b.date));
-
                 renderizarJogos();
-
             } catch (error) {
                 gamesList.innerHTML = '<div style="text-align:center; padding: 20px; color: var(--danger);">Erro ao carregar lista de jogos.</div>';
             }
@@ -370,49 +386,32 @@
         }
 
         filterSearch.addEventListener('input', renderizarJogos);
-        btnFilterCruzeiro.addEventListener('click', () => {
-            apenasCruzeiroFiltro = !apenasCruzeiroFiltro;
-            btnFilterCruzeiro.classList.toggle('active', apenasCruzeiroFiltro);
-            renderizarJogos();
-        });
-
+        btnFilterCruzeiro.addEventListener('click', () => { apenasCruzeiroFiltro = !apenasCruzeiroFiltro; btnFilterCruzeiro.classList.toggle('active', apenasCruzeiroFiltro); renderizarJogos(); });
         window.fecharLobby = () => lobbyOverlay.classList.add('hidden');
+        window.limparLogs = async function() { await remove(ref(db, 'tv/logs')); mostrarToast("Histórico limpo!"); }
 
         window.selecionarAlvo = async function(idJogo, label, urlLiga) {
-            // LIMPA LOGS E ESTADOS ANTIGOS NO FIREBASE AO TROCAR DE JOGO
+            fecharLobby();
+            loadingOverlay.classList.remove('hidden'); // MOSTRA TELA DE CARREGAMENTO
+            isWaitingForServer = true;
+
             await remove(ref(db, 'tv/logs'));
             await remove(ref(db, 'tv/cartao'));
             
-            await set(ref(db, 'tv/config'), { 
-                tipo: 'id', alvo: idJogo, label: label, urlLiga: urlLiga, timestamp: Date.now() 
-            });
-
-            // ATUALIZA IMEDIATAMENTE O CABEÇALHO DO PAINEL
+            await set(ref(db, 'tv/config'), { tipo: 'id', alvo: idJogo, label: label, urlLiga: urlLiga, timestamp: Date.now() });
             headerTargetLabel.innerText = label;
-
-            mostrarToast(`Configurado para: ${label}`);
-            fecharLobby();
         }
 
-        window.limparLogs = async function() {
-            await remove(ref(db, 'tv/logs'));
-            mostrarToast("Histórico de logs limpo!");
-        }
-
-        onValue(ref(db, 'tv/config'), (snap) => {
-            const config = snap.val();
-            if(!config) {
-                headerTargetLabel.innerText = "Nenhum alvo definido";
-                abrirLobby(); 
-            } else {
-                headerTargetLabel.innerText = config.label || "Alvo Ativo";
-                lobbyOverlay.classList.add('hidden');
-            }
-        });
-
-        // ESPELHO DE FEEDBACK VISUAL DO PAINEL
         onValue(ref(db, 'tv/placar'), (snap) => {
             const data = snap.val();
+            console.log("🔥 [F12 LOG] Placar Atualizado:", data); // LOG NO F12
+
+            if (isWaitingForServer) {
+                loadingOverlay.classList.add('hidden'); // ESCONDE LOADING QUANDO SERVIDOR RESPONDER
+                isWaitingForServer = false;
+                mostrarToast("Sincronizado!");
+            }
+
             if(!data) return;
 
             const home = document.getElementById('mirror-home');
@@ -431,14 +430,26 @@
                 scoreHome.innerText = data.homeScore ?? 0;
                 scoreAway.innerText = data.awayScore ?? 0;
 
-                if (data.status === 'post') {
-                    time.innerText = "FIM DE JOGO";
-                } else if (data.status === 'halftime' || data.clock === 'INT') {
-                    time.innerText = "INTERVALO";
-                } else {
-                    time.innerText = data.clock || "00:00";
-                }
+                if (data.status === 'post') time.innerText = "FIM DE JOGO";
+                else if (data.status === 'halftime' || data.clock === 'INT') time.innerText = "INTERVALO";
+                else if (data.status === 'pre') time.innerText = "PRÉ-JOGO";
+                else time.innerText = data.clock || "00:00";
             }
+        });
+
+        const cardHome = document.getElementById('card-home');
+        const cardAway = document.getElementById('card-away');
+        
+        onValue(ref(db, 'tv/cartao'), (snap) => {
+            const data = snap.val();
+            console.log("🟨 [F12 LOG] Cartão Recebido:", data);
+            if (!data) {
+                cardHome.className = 'card-bar';
+                cardAway.className = 'card-bar';
+                return;
+            }
+            const targetBar = (data.teamAbbr === document.getElementById('mirror-home').innerText) ? cardHome : cardAway;
+            targetBar.className = `card-bar ${data.tipo}`;
         });
 
         const logsArea = document.getElementById('logs-area');
@@ -461,7 +472,6 @@
         window.abrirModalTeste = function(tipo) {
             document.getElementById('modal-title').innerText = `Simular ${tipo.toUpperCase()}`;
             let html = `<input type="text" id="teste-time" class="modal-input" placeholder="Sigla do Time (Ex: CAM, JUV)">`;
-            
             if (tipo === 'gol' || tipo === 'cartao') {
                 html += `<input type="text" id="teste-jogador" class="modal-input" placeholder="Nome do Jogador">`;
                 html += `<input type="text" id="teste-numero" class="modal-input" placeholder="Número da Camisa (Opcional)">`;
@@ -469,56 +479,19 @@
             } else if (tipo === 'substituicao') {
                 html += `<input type="text" id="teste-sai" class="modal-input" placeholder="SAI: Nome do Jogador">
                          <input type="text" id="teste-entra" class="modal-input" placeholder="ENTRA: Nome do Jogador">`;
-            } else if (tipo === 'acrescimo') {
-                html = `<input type="number" id="teste-min" class="modal-input" placeholder="Minutos (Ex: 5)">`;
-            }
-
-            modalBody.innerHTML = html;
-            modal.classList.add('active');
-
+            } else if (tipo === 'acrescimo') { html = `<input type="number" id="teste-min" class="modal-input" placeholder="Minutos (Ex: 5)">`; }
+            modalBody.innerHTML = html; modal.classList.add('active');
             btnConfirm.onclick = async () => {
                 fecharModalTeste();
-                if(tipo === 'acrescimo') {
-                    await update(ref(db, 'tv/placar'), { acao: 'acrescimo', added: document.getElementById('teste-min').value, timestamp: Date.now() });
-                } else if (tipo === 'substituicao') {
-                    let payload = {
-                        team: document.getElementById('teste-time').value.toUpperCase(),
-                        out: { nome: document.getElementById('teste-sai').value, num: "X" },
-                        in: { nome: document.getElementById('teste-entra').value, num: "Y" },
-                        timestamp: Date.now(), hide: false
-                    };
-                    await set(ref(db, 'substituicao'), payload);
-                } else {
-                    let payload = {
-                        teamAbbr: document.getElementById('teste-time').value.toUpperCase(),
-                        jogador: document.getElementById('teste-jogador').value,
-                        numero: document.getElementById('teste-numero').value,
-                        timestamp: Date.now()
-                    };
-                    if(tipo === 'cartao') payload.tipo = document.getElementById('teste-cor').value;
-                    await set(ref(db, `tv/${tipo}`), payload);
-                }
-                mostrarToast(`Animação enviada para o OBS!`);
+                if(tipo === 'acrescimo') await update(ref(db, 'tv/placar'), { acao: 'acrescimo', added: document.getElementById('teste-min').value, timestamp: Date.now() });
+                else if (tipo === 'substituicao') await set(ref(db, 'substituicao'), { team: document.getElementById('teste-time').value.toUpperCase(), out: { nome: document.getElementById('teste-sai').value, num: "X" }, in: { nome: document.getElementById('teste-entra').value, num: "Y" }, timestamp: Date.now(), hide: false });
+                else { let p = { teamAbbr: document.getElementById('teste-time').value.toUpperCase(), jogador: document.getElementById('teste-jogador').value, numero: document.getElementById('teste-numero').value, timestamp: Date.now() }; if(tipo === 'cartao') p.tipo = document.getElementById('teste-cor').value; await set(ref(db, `tv/${tipo}`), p); }
+                mostrarToast(`Enviado!`);
             };
         };
-
         window.fecharModalTeste = () => modal.classList.remove('active');
-
-        window.enviarComandoPlacar = async (acao) => {
-            let payload = { acao: acao, status: acao, timestamp: Date.now() };
-            if(acao === 'start') {
-                payload = { ...payload, status: 'in', homeAbbr: 'CAM', awayAbbr: 'JUV', homeScore: 0, awayScore: 0, clock: "00:00" };
-            }
-            await set(ref(db, 'tv/placar'), payload);
-            mostrarToast(`Placar atualizado para: ${acao.toUpperCase()}`);
-        };
-
-        function mostrarToast(msg) {
-            const toast = document.getElementById('toast');
-            toast.innerText = msg;
-            toast.classList.add('show');
-            setTimeout(() => toast.classList.remove('show'), 3000);
-        }
+        window.enviarComandoPlacar = async (acao) => { await set(ref(db, 'tv/placar'), { acao: acao, status: acao, timestamp: Date.now() }); mostrarToast(`Placar: ${acao.toUpperCase()}`); };
+        function mostrarToast(msg) { const toast = document.getElementById('toast'); toast.innerText = msg; toast.classList.add('show'); setTimeout(() => toast.classList.remove('show'), 3000); }
     </script>
 </body>
 </html>
