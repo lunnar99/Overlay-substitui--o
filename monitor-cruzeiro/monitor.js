@@ -6,20 +6,45 @@ const LIGAS_DEFAULT = [
 ];
 
 const FIREBASE_DB_URL = 'https://termosm-6fed5-default-rtdb.firebaseio.com';
+const RENDER_PUBLIC_URL = 'https://derkfutoverlay.onrender.com';
+
 const eventosEnviados = new Set();
 let ultimoAlvoId = '';
 
+// AUTO-PING PARA EVITAR HIBERNAÇÃO NO RENDER (A CADA 10 MINUTOS)
+setInterval(() => {
+    fetch(RENDER_PUBLIC_URL)
+        .then(() => console.log('⏰ [KEEP-ALIVE] Ping enviado para evitar sleep no Render'))
+        .catch(() => {});
+}, 10 * 60 * 1000);
+
 async function atualizarFirebase(endpoint, payload) {
-    try { await fetch(`${FIREBASE_DB_URL}/${endpoint}.json`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...payload, timestamp: Date.now() }) }); } catch (e) {}
+    try { 
+        await fetch(`${FIREBASE_DB_URL}/${endpoint}.json`, { 
+            method: 'PUT', 
+            headers: { 'Content-Type': 'application/json' }, 
+            body: JSON.stringify({ ...payload, timestamp: Date.now() }) 
+        }); 
+    } catch (e) {}
 }
 
 async function registrarLog(mensagem, tipo = 'info') {
-    try { await fetch(`${FIREBASE_DB_URL}/tv/logs.json`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mensagem, tipo, timestamp: Date.now() }) }); } catch (e) {}
+    try { 
+        await fetch(`${FIREBASE_DB_URL}/tv/logs.json`, { 
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json' }, 
+            body: JSON.stringify({ mensagem, tipo, timestamp: Date.now() }) 
+        }); 
+    } catch (e) {}
 }
 
 async function lerConfiguracaoAlvo() {
-    try { const res = await fetch(`${FIREBASE_DB_URL}/tv/config.json`); return await res.json() || { tipo: 'time', alvo: 'Cruzeiro' }; } 
-    catch (e) { return { tipo: 'time', alvo: 'Cruzeiro' }; }
+    try { 
+        const res = await fetch(`${FIREBASE_DB_URL}/tv/config.json`); 
+        return await res.json() || { tipo: 'time', alvo: 'Cruzeiro' }; 
+    } catch (e) { 
+        return { tipo: 'time', alvo: 'Cruzeiro' }; 
+    }
 }
 
 export async function buscarERodarJogo() {
@@ -46,14 +71,19 @@ export async function buscarERodarJogo() {
 
         let jogoEncontrado = null;
         for (const evento of todosEventos) {
-            if (config.tipo === 'id' && String(evento.id) === String(config.alvo)) { jogoEncontrado = evento; break; } 
-            else if (config.tipo === 'time') {
+            if (config.tipo === 'id' && String(evento.id) === String(config.alvo)) { 
+                jogoEncontrado = evento; 
+                break; 
+            } else if (config.tipo === 'time') {
                 const nomes = evento.competitions[0].competitors.map(c => c.team.name.toLowerCase());
-                if (nomes.some(n => n.includes(config.alvo.toLowerCase()))) { jogoEncontrado = evento; break; }
+                if (nomes.some(n => n.includes(config.alvo.toLowerCase()))) { 
+                    jogoEncontrado = evento; 
+                    break; 
+                }
             }
         }
 
-        console.log(`[RENDER LOG] Alvo: ${config.alvo} | Jogos Encontrados: ${todosEventos.length} | Status: ${jogoEncontrado ? jogoEncontrado.status.type.state : 'NÃO ACHOU'}`);
+        console.log(`[RENDER LOG] Alvo: ${config.alvo} | Status: ${jogoEncontrado ? jogoEncontrado.status.type.state : 'NÃO ACHOU'}`);
 
         await atualizarFirebase('tv/debug', { 
             alvoBuscado: config.alvo, 
@@ -132,6 +162,16 @@ export async function buscarERodarJogo() {
     }
 }
 
-async function start() { let timeout = await buscarERodarJogo(); setTimeout(start, timeout); }
+async function start() { 
+    let timeout = await buscarERodarJogo(); 
+    setTimeout(start, timeout); 
+}
+
 const PORT = process.env.PORT || 10000;
-http.createServer((req, res) => { res.writeHead(200); res.end('Monitor Ativo'); }).listen(PORT, () => { console.log(`[RENDER LOG] Servidor rodando na porta ${PORT}`); start(); });
+http.createServer((req, res) => { 
+    res.writeHead(200, { 'Access-Control-Allow-Origin': '*' }); 
+    res.end('Servidor Ativo'); 
+}).listen(PORT, () => { 
+    console.log(`[RENDER LOG] Servidor ativo na porta ${PORT}`); 
+    start(); 
+});
