@@ -75,13 +75,9 @@
         .log-item.warning { border-left-color: var(--warning); }
         .log-time { font-size: 0.75rem; color: #6b7280; display: block; margin-bottom: 4px; }
 
-        /* MODAL DE SELEÇÃO E LOADING GLOBAL */
-        .lobby-overlay, .loading-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(17, 24, 39, 0.95); display: flex; justify-content: center; align-items: center; z-index: 200; backdrop-filter: blur(10px); flex-direction: column; padding: 20px;}
-        .lobby-overlay.hidden, .loading-overlay.hidden { display: none; }
-        
-        .loading-overlay { z-index: 999; color: white; font-size: 1.5rem; font-weight: bold; }
-        .spinner { border: 6px solid rgba(255,255,255,0.3); border-top: 6px solid var(--secondary); border-radius: 50%; width: 60px; height: 60px; animation: spin 1s linear infinite; margin-bottom: 20px;}
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        /* MODAL DE SELEÇÃO */
+        .lobby-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(17, 24, 39, 0.95); display: flex; justify-content: center; align-items: center; z-index: 200; backdrop-filter: blur(10px); flex-direction: column; padding: 20px;}
+        .lobby-overlay.hidden { display: none; }
 
         .lobby-card { background: white; width: 100%; max-width: 680px; border-radius: 16px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); }
         .lobby-header { background: var(--primary); color: white; padding: 20px; text-align: center; }
@@ -136,13 +132,7 @@
 </head>
 <body>
 
-    <!-- TELA DE LOADING GLOBAL -->
-    <div class="loading-overlay hidden" id="loading-overlay">
-        <div class="spinner"></div>
-        <div>Sincronizando com Servidor...</div>
-    </div>
-
-    <div class="lobby-overlay" id="lobby-overlay">
+    <div class="lobby-overlay hidden" id="lobby-overlay">
         <div class="lobby-card">
             <div class="lobby-header">
                 <h2>SELEÇÃO DE TRANSMISSÃO</h2>
@@ -266,10 +256,8 @@
         let jogosCarregados = [];
         let apenasCruzeiroFiltro = false;
         let dataFiltroSelecionada = "TODOS";
-        let isWaitingForServer = false;
 
         const lobbyOverlay = document.getElementById('lobby-overlay');
-        const loadingOverlay = document.getElementById('loading-overlay');
         const gamesList = document.getElementById('games-list');
         const headerTargetLabel = document.getElementById('header-target-label');
         const filterSearch = document.getElementById('filter-search');
@@ -306,7 +294,6 @@
             jogosCarregados = [];
 
             try {
-                // CONSULTA LIMPA SEM PARÂMETROS QUE SUCUMBEM A API
                 const requisicoes = LIGAS.map(liga => 
                     fetch(liga.url)
                         .then(r => r.json())
@@ -317,9 +304,7 @@
                 const resultados = await Promise.all(requisicoes);
                 jogosCarregados = resultados.flat();
                 jogosCarregados.sort((a, b) => new Date(a.date) - new Date(b.date));
-
                 renderizarJogos();
-
             } catch (error) {
                 gamesList.innerHTML = '<div style="text-align:center; padding: 20px; color: var(--danger);">Erro ao carregar lista de jogos.</div>';
             }
@@ -389,25 +374,26 @@
 
         window.selecionarAlvo = async function(idJogo, label, urlLiga) {
             fecharLobby();
-            loadingOverlay.classList.remove('hidden'); // MOSTRA TELA DE CARREGAMENTO
-            isWaitingForServer = true;
-
             await remove(ref(db, 'tv/logs'));
             await remove(ref(db, 'tv/cartao'));
             
             await set(ref(db, 'tv/config'), { tipo: 'id', alvo: idJogo, label: label, urlLiga: urlLiga, timestamp: Date.now() });
             headerTargetLabel.innerText = label;
+            mostrarToast(`Configurado: ${label}`);
         }
+
+        onValue(ref(db, 'tv/config'), (snap) => {
+            const config = snap.val();
+            if(!config) {
+                headerTargetLabel.innerText = "Nenhum alvo definido";
+            } else {
+                headerTargetLabel.innerText = config.label || "Alvo Ativo";
+            }
+        });
 
         onValue(ref(db, 'tv/placar'), (snap) => {
             const data = snap.val();
-            console.log("🔥 [F12 LOG] Placar Atualizado:", data); // LOG NO F12
-
-            if (isWaitingForServer) {
-                loadingOverlay.classList.add('hidden'); // ESCONDE LOADING QUANDO SERVIDOR RESPONDER
-                isWaitingForServer = false;
-                mostrarToast("Sincronizado!");
-            }
+            console.log("🔥 [F12 LOG] Placar Atualizado:", data);
 
             if(!data) return;
 
@@ -462,13 +448,25 @@
             });
         });
 
+        // PONTE DE DEBUG
+        onValue(ref(db, 'tv/debug'), (snap) => {
+            const data = snap.val();
+            if (!data) return;
+            console.log("=========================================");
+            console.log("🛠️ [F12 BACKEND INFO] O que o Render está vendo agora:");
+            console.log("-> Alvo Buscado:", data.alvoBuscado);
+            console.log("-> Total de Jogos Baixados da API:", data.jogosEncontradosNaAPI);
+            console.log("-> Status do Alvo:", data.jogoAchado);
+            console.log("=========================================");
+        });
+
         const modal = document.getElementById('modal');
         const modalBody = document.getElementById('modal-body');
         const btnConfirm = document.getElementById('modal-confirm');
 
         window.abrirModalTeste = function(tipo) {
             document.getElementById('modal-title').innerText = `Simular ${tipo.toUpperCase()}`;
-            let html = `<input type="text" id="teste-time" class="modal-input" placeholder="Sigla do Time (Ex: CAM, JUV)">`;
+            let html = `<input type="text" id="teste-time" class="modal-input" placeholder="Sigla do Time (Ex: SAN, REMO)">`;
             if (tipo === 'gol' || tipo === 'cartao') {
                 html += `<input type="text" id="teste-jogador" class="modal-input" placeholder="Nome do Jogador">`;
                 html += `<input type="text" id="teste-numero" class="modal-input" placeholder="Número da Camisa (Opcional)">`;
@@ -489,21 +487,6 @@
         window.fecharModalTeste = () => modal.classList.remove('active');
         window.enviarComandoPlacar = async (acao) => { await set(ref(db, 'tv/placar'), { acao: acao, status: acao, timestamp: Date.now() }); mostrarToast(`Placar: ${acao.toUpperCase()}`); };
         function mostrarToast(msg) { const toast = document.getElementById('toast'); toast.innerText = msg; toast.classList.add('show'); setTimeout(() => toast.classList.remove('show'), 3000); }
-
-        // ---------------------------------------------------------
-        // PONTE DE DEBUG DO SERVIDOR PARA O F12
-        // ---------------------------------------------------------
-        onValue(ref(db, 'tv/debug'), (snap) => {
-            const data = snap.val();
-            if (!data) return;
-            console.log("=========================================");
-            console.log("🛠️ [F12 BACKEND INFO] O que o Render está vendo agora:");
-            console.log("-> Alvo Buscado:", data.alvoBuscado);
-            console.log("-> Total de Jogos Baixados da API:", data.jogosEncontradosNaAPI);
-            console.log("-> Status do Alvo:", data.jogoAchado);
-            console.log("-> URLs que ele consultou:", data.urlsConsultadas);
-            console.log("=========================================");
-        });
     </script>
 </body>
 </html>
