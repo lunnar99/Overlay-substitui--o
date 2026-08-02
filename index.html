@@ -49,6 +49,7 @@
         .btn-green { background: var(--success); }
         .btn-red { background: var(--danger); }
         .btn-yellow { background: var(--warning); color: var(--dark); }
+        .btn-disabled { opacity: 0.5; pointer-events: none; filter: grayscale(1); }
 
         .panel-right { flex: 2; display: flex; flex-direction: column; gap: 20px; overflow: hidden; }
 
@@ -132,8 +133,6 @@
         
         .toast { position: fixed; bottom: -60px; left: 50%; transform: translateX(-50%); background: var(--dark); color: white; padding: 12px 25px; border-radius: 50px; font-weight: bold; transition: bottom 0.3s; z-index: 1000; box-shadow: 0 10px 20px rgba(0,0,0,0.3);}
         .toast.show { bottom: 30px; }
-        
-        .btn-disabled { opacity: 0.5; pointer-events: none; }
     </style>
 </head>
 <body>
@@ -193,7 +192,7 @@
             <!-- PAINEL AUTOMÁTICO DE ESCALAÇÃO -->
             <div class="card">
                 <div class="card-title">📋 Escalação Oficial</div>
-                <button class="btn btn-blue btn-full" id="btn-escalacao" onclick="solicitarEscalacao()">
+                <button class="btn btn-blue btn-full btn-disabled" id="btn-escalacao" onclick="solicitarEscalacao()">
                     🔍 Puxar Escalação (1 Crédito)
                 </button>
                 <small id="escalacao-timer-info" style="display:block; margin-top: 8px; color: #666; font-size: 0.85rem; text-align: center; font-weight: 600;">Aguardando seleção do jogo...</small>
