@@ -75,7 +75,12 @@
         .log-item.warning { border-left-color: var(--warning); }
         .log-time { font-size: 0.75rem; color: #6b7280; display: block; margin-bottom: 4px; }
 
-        /* MODAL DE SELEÇÃO */
+        /* TELA DE LOADING E OVERLAY DO MODAL */
+        .loading-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(17, 24, 39, 0.92); display: flex; justify-content: center; align-items: center; z-index: 9999; backdrop-filter: blur(10px); flex-direction: column; color: white; font-size: 1.2rem; font-weight: bold; }
+        .loading-overlay.hidden { display: none; }
+        .spinner { border: 5px solid rgba(255,255,255,0.2); border-top: 5px solid var(--secondary); border-radius: 50%; width: 50px; height: 50px; animation: spin 0.8s linear infinite; margin-bottom: 15px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
         .lobby-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(17, 24, 39, 0.95); display: flex; justify-content: center; align-items: center; z-index: 200; backdrop-filter: blur(10px); flex-direction: column; padding: 20px;}
         .lobby-overlay.hidden { display: none; }
 
@@ -131,6 +136,12 @@
     </style>
 </head>
 <body>
+
+    <!-- TELA DE CARREGAMENTO / AUTO-PING -->
+    <div class="loading-overlay" id="loading-overlay">
+        <div class="spinner"></div>
+        <div id="loading-text">Conectando ao servidor...</div>
+    </div>
 
     <div class="lobby-overlay hidden" id="lobby-overlay">
         <div class="lobby-card">
@@ -248,6 +259,28 @@
         const app = initializeApp(config);
         const db = getDatabase(app);
 
+        const RENDER_URL = "https://derkfutoverlay.onrender.com";
+        const loadingOverlay = document.getElementById('loading-overlay');
+        const loadingText = document.getElementById('loading-text');
+
+        // FUNÇÃO DE AUTO-PING PARA ACORDAR O SERVIDOR NO RENDER
+        async function acordarServidorRender() {
+            loadingText.innerText = "Acordando servidor no Render (Aguarde)...";
+            loadingOverlay.classList.remove('hidden');
+
+            try {
+                await fetch(RENDER_URL, { mode: 'no-cors' });
+                console.log("⚡ [AUTO-PING] Servidor Render ativo!");
+            } catch (err) {
+                console.log("⚠️ [AUTO-PING] Tentativa enviada.");
+            } finally {
+                setTimeout(() => loadingOverlay.classList.add('hidden'), 1000);
+            }
+        }
+
+        // DISPARA O AUTO-PING AO CARREGAR A PÁGINA
+        acordarServidorRender();
+
         const LIGAS = [
             { nome: 'Série A', url: 'https://site.api.espn.com/apis/site/v2/sports/soccer/bra.1/scoreboard' },
             { nome: 'Copa do Brasil', url: 'https://site.api.espn.com/apis/site/v2/sports/soccer/bra.copa_do_brazil/scoreboard' }
@@ -288,6 +321,7 @@
         }
 
         window.abrirLobby = async function() {
+            acordarServidorRender(); // ACORDA O SERVIDOR TAMBÉM AO ABRIR O MODAL
             lobbyOverlay.classList.remove('hidden');
             gerarCalendarioVisual();
             gamesList.innerHTML = '<div style="text-align:center; padding: 20px; color: #888; font-weight:bold;">Carregando jogos...</div>';
@@ -425,7 +459,6 @@
         
         onValue(ref(db, 'tv/cartao'), (snap) => {
             const data = snap.val();
-            console.log("🟨 [F12 LOG] Cartão Recebido:", data);
             if (!data) {
                 cardHome.className = 'card-bar';
                 cardAway.className = 'card-bar';
@@ -446,18 +479,6 @@
                 div.innerHTML = `<span class="log-time">${timeStr}</span>${data.mensagem}`;
                 logsArea.insertBefore(div, logsArea.firstChild);
             });
-        });
-
-        // PONTE DE DEBUG
-        onValue(ref(db, 'tv/debug'), (snap) => {
-            const data = snap.val();
-            if (!data) return;
-            console.log("=========================================");
-            console.log("🛠️ [F12 BACKEND INFO] O que o Render está vendo agora:");
-            console.log("-> Alvo Buscado:", data.alvoBuscado);
-            console.log("-> Total de Jogos Baixados da API:", data.jogosEncontradosNaAPI);
-            console.log("-> Status do Alvo:", data.jogoAchado);
-            console.log("=========================================");
         });
 
         const modal = document.getElementById('modal');
