@@ -96,26 +96,57 @@ export async function buscarERodarJogo() {
     } catch (e) { await atualizarFirebase('tv/placar', { status: 'erro' }); return 30000; }
 }
 
-async function buscarEscalacaoManual(matchId, gameDateISO) {
+// BUSCA O MATCH_ID NA LIVE-SCORE DE GRAÇA E DEPOIS CONSOME 1 CRÉDITO PARA ESCALAÇÃO
+async function buscarEscalacaoAutomatica(homeName, awayName, gameDateISO) {
     const agora = new Date();
     const dataJogo = new Date(gameDateISO);
     const difMinutos = (dataJogo - agora) / (1000 * 60);
 
-    if (difMinutos > 20) return { sucesso: false, mensagem: `Faltam ${Math.ceil(difMinutos)} minutos para o jogo. API liberada apenas 20 min antes.` };
+    if (difMinutos > 20) {
+        return { sucesso: false, mensagem: `Faltam ${Math.ceil(difMinutos)} minutos. A escalação só é liberada 20min antes do jogo.` };
+    }
 
     try {
-        const url = `https://live-score-api.com/api-client/matches/lineups.json?key=${LINEUP_KEY}&secret=${LINEUP_SECRET}&match_id=${matchId}`;
-        const response = await fetch(url);
-        const json = await response.json();
+        // STEP 1: Busca a lista de jogos do dia na Live-Score (GRÁTIS)
+        const dateStr = dataJogo.toISOString().split('T')[0];
+        const fixturesUrl = `https://live-score-api.com/api-client/scores/history.json?key=${LINEUP_KEY}&secret=${LINEUP_SECRET}&date=${dateStr}`;
+        const fixRes = await fetch(fixturesUrl);
+        const fixData = await fixRes.json();
+
+        let matchId = null;
+
+        if (fixData.success && fixData.data && fixData.data.match) {
+            const h = homeName.toLowerCase();
+            const a = awayName.toLowerCase();
+
+            // Procura a partida comparando os nomes dos times
+            const match = fixData.data.match.find(m => {
+                const homeLive = m.home_name.toLowerCase();
+                const awayLive = m.away_name.toLowerCase();
+                return (homeLive.includes(h) || h.includes(homeLive)) && (awayLive.includes(a) || a.includes(awayLive));
+            });
+
+            if (match) matchId = match.id;
+        }
+
+        if (!matchId) {
+            return { sucesso: false, mensagem: `Não encontramos a partida na lista oficial da Live-Score API hoje.` };
+        }
+
+        // STEP 2: Agora sim fazemos a requisição paga com o matchId encontrado (GASTA 1 CRÉDITO)
+        const lineupUrl = `https://live-score-api.com/api-client/matches/lineups.json?key=${LINEUP_KEY}&secret=${LINEUP_SECRET}&match_id=${matchId}`;
+        const lineupRes = await fetch(lineupUrl);
+        const json = await lineupRes.json();
 
         if (json.success && json.data && json.data.lineup) {
             await atualizarFirebase('tv/escalacao', { home: json.data.lineup.home, away: json.data.lineup.away, timestamp: Date.now() });
-            return { sucesso: true, mensagem: "Escalação salva com sucesso!", dadosBrutos: json.data.lineup };
+            return { sucesso: true, mensagem: "Escalação obtida com sucesso e salva!", dadosBrutos: json.data.lineup };
         } else {
-            return { sucesso: false, mensagem: json.error || "Escalação indisponível (Ainda não divulgada oficial)." };
+            return { sucesso: false, mensagem: json.error || "A escalação oficial ainda não foi divulgada pelos clubes." };
         }
+
     } catch (error) {
-        return { sucesso: false, mensagem: "Falha de conexão com a API de escalação." };
+        return { sucesso: false, mensagem: "Falha de comunicação com a API de escalação." };
     }
 }
 
@@ -127,9 +158,11 @@ http.createServer(async (req, res) => {
 
     if (req.url.startsWith('/escalacao')) {
         const urlParams = new URLSearchParams(req.url.split('?')[1]);
-        const matchId = urlParams.get('matchId');
+        const homeName = urlParams.get('home');
+        const awayName = urlParams.get('away');
         const gameDate = urlParams.get('gameDate');
-        const resultado = await buscarEscalacaoManual(matchId, gameDate);
+
+        const resultado = await buscarEscalacaoAutomatica(homeName, awayName, gameDate);
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify(resultado));
         return;
