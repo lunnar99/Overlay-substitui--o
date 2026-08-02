@@ -31,11 +31,13 @@ export async function buscarERodarJogo() {
             ultimoAlvoId = config.alvo;
         }
 
+        // CORREÇÃO DO FUSO HORÁRIO: Volta 3 dias para garantir que pegue o jogo indepedente de UTC
         const date = new Date();
+        date.setDate(date.getDate() - 3); 
         const yyyy = date.getFullYear();
         const mm = String(date.getMonth() + 1).padStart(2, '0');
         const dd = String(date.getDate()).padStart(2, '0');
-        const datesParam = `?dates=${yyyy}${mm}${dd}-${yyyy}1231`;
+        const datesParam = `?dates=${yyyy}${mm}${dd}-${yyyy+1}1231`;
 
         let urlsParaBuscar = config.urlLiga ? [`${config.urlLiga}${datesParam}`] : LIGAS_DEFAULT.map(u => `${u}${datesParam}`);
 
@@ -45,7 +47,6 @@ export async function buscarERodarJogo() {
                 const res = await fetch(url);
                 const data = await res.json();
                 if (data.events) {
-                    // Extrai a liga dinamicamente da URL ou do retorno para montar o URL do summary depois
                     const slugLiga = data.leagues?.[0]?.slug || (url.includes('copa_do_brazil') ? 'bra.copa_do_brazil' : 'bra.1');
                     data.events.forEach(e => { e.slugDaLigaParaBusca = slugLiga; todosEventos.push(e); });
                 }
@@ -61,7 +62,19 @@ export async function buscarERodarJogo() {
             }
         }
 
-        if (!jogoEncontrado) { await atualizarFirebase('tv/placar', { status: 'off' }); return 10000; }
+        // ENVIANDO DEBUG PARA O F12 DO NAVEGADOR
+        await atualizarFirebase('tv/debug', { 
+            alvoBuscado: config.alvo, 
+            urlsConsultadas: urlsParaBuscar, 
+            jogosEncontradosNaAPI: todosEventos.length, 
+            jogoAchado: jogoEncontrado ? `${jogoEncontrado.name} (${jogoEncontrado.status.type.state})` : "NÃO ACHOU (Verifique URLs/Fuso)", 
+            timestamp: Date.now() 
+        });
+
+        if (!jogoEncontrado) { 
+            await atualizarFirebase('tv/placar', { status: 'off' }); 
+            return 10000; 
+        }
 
         const comp = jogoEncontrado.competitions[0];
         const timeCasa = comp.competitors.find(c => c.homeAway === 'home');
@@ -69,13 +82,10 @@ export async function buscarERodarJogo() {
         const estadoJogo = comp.status?.type?.state || 'pre'; 
         const isHalftime = comp.status?.type?.name === 'STATUS_HALFTIME' || comp.status?.type?.detail === 'HT';
 
-        // 1. JOGO PRÉ-JOGO (MANDA STATUS 'pre' PARA NÃO RODAR TIMER)
         if (estadoJogo === 'pre') {
             await atualizarFirebase('tv/placar', { status: 'pre', homeAbbr: timeCasa.team.abbreviation, awayAbbr: timeFora.team.abbreviation, homeScore: 0, awayScore: 0, clock: 'PRÉ-JOGO', period: 1 });
             return 10000;
         }
-        
-        // 2. JOGO AO VIVO
         else if (estadoJogo === 'in') {
             const relogio = (comp.status?.displayClock || "00:00").split('+')[0].replace(/'/g, ''); 
 
@@ -89,7 +99,6 @@ export async function buscarERodarJogo() {
                 period: comp.status?.period || 1
             });
 
-            // USO DINÂMICO DA LIGA PARA NÃO QUEBRAR COPA DO BRASIL
             const slugFinal = jogoEncontrado.slugDaLigaParaBusca || 'bra.1';
             const summaryApiUrl = `https://site.api.espn.com/apis/site/v2/sports/soccer/${slugFinal}/summary?event=${jogoEncontrado.id}`;
             try {
@@ -122,13 +131,10 @@ export async function buscarERodarJogo() {
 
             return 10000;
         } 
-        
-        // 3. JOGO ENCERRADO
         else if (estadoJogo === 'post') {
             await atualizarFirebase('tv/placar', { status: 'post', homeAbbr: timeCasa.team.abbreviation, awayAbbr: timeFora.team.abbreviation, homeScore: parseInt(timeCasa.score) || 0, awayScore: parseInt(timeFora.score) || 0, clock: 'FIM DE JOGO' });
             return 30000;
         }
-
     } catch (e) {
         await atualizarFirebase('tv/placar', { status: 'erro' });
         return 30000;
