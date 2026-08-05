@@ -306,8 +306,10 @@
                 toggle.checked = true;
                 dash.classList.remove('system-offline');
                 btnChange.disabled = false;
-                // Re-valida labels se houver alvo configurado
                 if (jogoSelecionadoAtual) headerLabel.innerText = `${jogoSelecionadoAtual.home} x ${jogoSelecionadoAtual.away}`;
+                
+                // Cutuca o Render silenciosamente se o painel foi aberto com o sistema já 'ON'
+                fetch(`${RENDER_URL}/`).catch(()=>{}); 
             } else {
                 isSystemOnline = false;
                 toggle.checked = false;
@@ -315,6 +317,9 @@
                 btnChange.disabled = true;
                 headerLabel.innerText = "SISTEMA DESLIGADO (OFF)";
             }
+
+            // CORREÇÃO: Esconde a tela de loading assim que lê o status!
+            loadingOverlay.classList.add('hidden');
         });
 
         const LIGAS = [ { nome: 'Série A', url: 'https://site.api.espn.com/apis/site/v2/sports/soccer/bra.1/scoreboard' }, { nome: 'Copa do Brasil', url: 'https://site.api.espn.com/apis/site/v2/sports/soccer/bra.copa_do_brazil/scoreboard' } ];
