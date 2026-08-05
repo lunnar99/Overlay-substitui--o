@@ -29,20 +29,28 @@
         .header-actions { display: flex; align-items: center; gap: 15px; }
         .btn-change-game { background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.4); color: white; padding: 8px 15px; border-radius: 50px; cursor: pointer; font-weight: 600; transition: 0.2s; }
         .btn-change-game:hover { background: white; color: var(--primary); }
+        .btn-change-game:disabled { opacity: 0.3; cursor: not-allowed; }
 
-        .status-badge { background: rgba(255,255,255,0.2); padding: 5px 15px; border-radius: 50px; font-size: 0.9rem; font-weight: 600; display: flex; align-items: center; gap: 8px; }
-        .status-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--success); box-shadow: 0 0 10px var(--success); }
+        /* TOGGLE SWITCH STYLE */
+        .power-container { background: rgba(0,0,0,0.3); padding: 6px 15px; border-radius: 50px; display: flex; align-items: center; gap: 10px; font-weight: bold; font-size: 0.85rem;}
+        .switch { position: relative; display: inline-block; width: 40px; height: 20px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--danger); transition: .3s; border-radius: 34px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.5);}
+        .slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 2px; bottom: 2px; background-color: white; transition: .3s; border-radius: 50%; }
+        input:checked + .slider { background-color: var(--success); }
+        input:checked + .slider:before { transform: translateX(20px); }
 
-        .dashboard-container { display: flex; flex: 1; padding: 20px; gap: 20px; overflow: hidden; background: url('BG.png') center/cover no-repeat; }
+        .dashboard-container { display: flex; flex: 1; padding: 20px; gap: 20px; overflow: hidden; background: url('BG.png') center/cover no-repeat; transition: all 0.5s ease; }
+        
+        /* FILTRO DE SISTEMA DESLIGADO */
+        .system-offline { filter: grayscale(100%) brightness(0.6); pointer-events: none; user-select: none; }
 
         .panel-left { flex: 1; max-width: 400px; display: flex; flex-direction: column; gap: 20px; overflow-y: auto; padding-right: 10px; }
-        
         .card { background: var(--glass-bg); backdrop-filter: blur(10px); border-radius: 12px; padding: 20px; box-shadow: var(--card-shadow); border: 1px solid rgba(255,255,255,0.5); }
         .card-title { font-size: 1.1rem; font-weight: 700; color: var(--primary); margin-bottom: 15px; border-bottom: 2px solid rgba(0,0,0,0.1); padding-bottom: 10px; }
 
         .btn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
         .btn-full { grid-column: span 2; }
-        
         .btn { padding: 12px; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; transition: 0.2s; color: var(--white); text-transform: uppercase; font-size: 0.9rem; }
         .btn:hover { filter: brightness(1.1); transform: translateY(-1px); }
         .btn-blue { background: var(--secondary); }
@@ -55,7 +63,6 @@
 
         .visual-feedback { background: rgba(17, 24, 39, 0.9); backdrop-filter: blur(10px); border-radius: 12px; padding: 20px; color: var(--white); display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 180px; position: relative; box-shadow: inset 0 0 20px rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.2);}
         .visual-title { position: absolute; top: 15px; left: 15px; font-size: 0.8rem; color: #aaa; font-weight: bold; text-transform: uppercase; }
-        
         .mirror-placar { display: flex; align-items: center; gap: 20px; font-size: 2.5rem; font-weight: 900; font-family: 'Arial Black', sans-serif; }
         .team-box { display: flex; flex-direction: column; align-items: center; position: relative; padding-top: 6px; }
         .card-bar { position: absolute; top: 0; width: 100%; height: 4px; border-radius: 2px; display: none; }
@@ -69,7 +76,6 @@
         .logs-container { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding: 5px; }
         .logs-container::-webkit-scrollbar { width: 6px; }
         .logs-container::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-        
         .log-item { background: rgba(255,255,255,0.9); border-left: 4px solid #ccc; padding: 12px; border-radius: 6px; font-size: 0.9rem; font-weight: 600; animation: slideIn 0.3s ease-out; box-shadow: 0 2px 4px rgba(0,0,0,0.05);}
         .log-item.info { border-left-color: var(--secondary); }
         .log-item.success { border-left-color: var(--success); }
@@ -83,7 +89,6 @@
 
         .lobby-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(17, 24, 39, 0.95); display: flex; justify-content: center; align-items: center; z-index: 200; backdrop-filter: blur(10px); flex-direction: column; padding: 20px;}
         .lobby-overlay.hidden { display: none; }
-
         .lobby-card { background: white; width: 100%; max-width: 680px; border-radius: 16px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); }
         .lobby-header { background: var(--primary); color: white; padding: 20px; text-align: center; }
         .lobby-header h2 { margin: 0; font-size: 1.4rem; font-weight: 900; letter-spacing: 1px; }
@@ -91,7 +96,6 @@
         .date-picker-bar { display: flex; gap: 10px; overflow-x: auto; padding: 15px 20px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; }
         .date-picker-bar::-webkit-scrollbar { height: 4px; }
         .date-picker-bar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-
         .date-card { flex: 0 0 auto; min-width: 75px; background: white; border: 1px solid #cbd5e1; border-radius: 10px; padding: 8px 12px; text-align: center; cursor: pointer; transition: 0.2s; }
         .date-card:hover { border-color: var(--secondary); }
         .date-card.active { background: var(--primary); color: white; border-color: var(--primary); box-shadow: 0 4px 10px rgba(30, 58, 138, 0.3); }
@@ -107,16 +111,13 @@
         .lobby-body { padding: 15px 20px; max-height: 350px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; background: #f8fafc;}
         .lobby-body::-webkit-scrollbar { width: 8px; }
         .lobby-body::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-        
         .game-btn { background: white; border: 1px solid #e2e8f0; padding: 12px 15px; border-radius: 10px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; transition: 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
         .game-btn:hover { border-color: var(--secondary); box-shadow: 0 4px 6px rgba(59, 130, 246, 0.1); transform: translateY(-2px); }
-        
         .game-teams { font-size: 1rem; font-weight: 800; color: var(--dark); display: flex; align-items: center; gap: 8px; }
         .game-league-tag { font-size: 0.7rem; background: #e0e7ff; color: #3730a3; padding: 2px 8px; border-radius: 4px; font-weight: bold; text-transform: uppercase; margin-bottom: 4px; display: inline-block; }
         .game-info-col { display: flex; flex-direction: column; gap: 2px; align-items: flex-end; }
         .game-date { font-size: 0.75rem; color: #64748b; font-weight: 700; text-transform: uppercase; }
         .game-status { font-size: 0.8rem; padding: 3px 8px; border-radius: 50px; font-weight: 700; }
-        
         .status-pre { background: #e2e8f0; color: #475569; }
         .status-in { background: #dcfce7; color: #166534; animation: pulse 2s infinite; }
         
@@ -128,7 +129,6 @@
         .modal-header { font-size: 1.2rem; font-weight: 800; color: var(--primary); margin-bottom: 15px; }
         .modal-input { width: 100%; padding: 12px; border: 1px solid #d1d5db; border-radius: 8px; margin-bottom: 10px; font-size: 1rem; outline: none; }
         .modal-actions { display: flex; gap: 10px; margin-top: 15px; }
-
         @keyframes slideIn { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
         
         .toast { position: fixed; bottom: -60px; left: 50%; transform: translateX(-50%); background: var(--dark); color: white; padding: 12px 25px; border-radius: 50px; font-weight: bold; transition: bottom 0.3s; z-index: 1000; box-shadow: 0 10px 20px rgba(0,0,0,0.3);}
@@ -139,26 +139,23 @@
 
     <div class="loading-overlay" id="loading-overlay">
         <div class="spinner"></div>
-        <div id="loading-text">Conectando ao servidor...</div>
+        <div id="loading-text">Conectando...</div>
     </div>
 
+    <!-- LOBBY -->
     <div class="lobby-overlay hidden" id="lobby-overlay">
         <div class="lobby-card">
             <div class="lobby-header">
                 <h2>SELEÇÃO DE TRANSMISSÃO</h2>
             </div>
-
             <div class="date-picker-bar" id="date-picker-bar"></div>
-            
             <div class="lobby-filter-bar">
                 <input type="text" class="filter-input" id="filter-search" placeholder="Buscar por time...">
                 <button class="btn-filter-cru" id="btn-filter-cruzeiro">Apenas Cruzeiro</button>
             </div>
-
             <div class="lobby-body" id="games-list">
                 <div style="text-align:center; padding: 20px; color: #888; font-weight:bold;">Carregando jogos...</div>
             </div>
-            
             <div class="lobby-footer">
                 <button class="btn" style="background: #e2e8f0; color: #475569;" onclick="fecharLobby()">Cancelar / Fechar</button>
             </div>
@@ -167,18 +164,23 @@
 
     <header>
         <div class="header-title">
-            OVERLAY BROADCAST UI
-            <span class="current-target" id="header-target-label">Carregando alvo...</span>
+            OVERLAY UI
+            <span class="current-target" id="header-target-label">AGUARDANDO...</span>
         </div>
         <div class="header-actions">
-            <button class="btn-change-game" onclick="abrirLobby()">🔄 Trocar Jogo</button>
-            <div class="status-badge">
-                <div class="status-dot"></div> Robô Ativo
+            <button class="btn-change-game" id="btn-abrir-lobby" onclick="abrirLobby()">🔄 Trocar Jogo</button>
+            
+            <div class="power-container">
+                <span class="power-label">SISTEMA</span>
+                <label class="switch">
+                    <input type="checkbox" id="power-toggle" onchange="togglePower(this)">
+                    <span class="slider"></span>
+                </label>
             </div>
         </div>
     </header>
 
-    <div class="dashboard-container">
+    <div class="dashboard-container system-offline" id="main-dashboard">
         <div class="panel-left">
             <div class="card">
                 <div class="card-title">⚽ Forçar Gráficos (Testes)</div>
@@ -189,7 +191,6 @@
                 </div>
             </div>
 
-            <!-- PAINEL AUTOMÁTICO DE ESCALAÇÃO -->
             <div class="card">
                 <div class="card-title">📋 Escalação Oficial</div>
                 <button class="btn btn-blue btn-full btn-disabled" id="btn-escalacao" onclick="solicitarEscalacao()">
@@ -248,265 +249,202 @@
             </div>
         </div>
     </div>
-
-    <div class="toast" id="toast">Ação executada com sucesso!</div>
+    <div class="toast" id="toast">Ação executada!</div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
         import { getDatabase, ref, set, onValue, update, query, limitToLast, remove } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
-        const config = {
-            apiKey: "AIzaSyBH7VzRejR_jOg-ogO8mLw162PN5QKODeI",
-            authDomain: "termosm-6fed5.firebaseapp.com",
-            projectId: "termosm-6fed5",
-            databaseURL: "https://termosm-6fed5-default-rtdb.firebaseio.com",
-            storageBucket: "termosm-6fed5.firebasestorage.app",
-            messagingSenderId: "161850041087",
-            appId: "1:161850041087:web:2dc4f19760f44475fde2ca"
-        };
-        const app = initializeApp(config);
-        const db = getDatabase(app);
+        const config = { apiKey: "AIzaSyBH7VzRejR_jOg-ogO8mLw162PN5QKODeI", authDomain: "termosm-6fed5.firebaseapp.com", projectId: "termosm-6fed5", databaseURL: "https://termosm-6fed5-default-rtdb.firebaseio.com", storageBucket: "termosm-6fed5.firebasestorage.app", messagingSenderId: "161850041087", appId: "1:161850041087:web:2dc4f19760f44475fde2ca" };
+        const app = initializeApp(config); const db = getDatabase(app);
 
         const RENDER_URL = "https://derkfutoverlay.onrender.com";
         const loadingOverlay = document.getElementById('loading-overlay');
         const loadingText = document.getElementById('loading-text');
 
         let jogoSelecionadoAtual = null;
+        let isSystemOnline = false;
 
-        async function acordarServidorRender() {
-            if (loadingText) loadingText.innerText = "Conectando ao servidor...";
-            if (loadingOverlay) loadingOverlay.classList.remove('hidden');
-            try { await fetch(RENDER_URL, { mode: 'no-cors' }); } catch (err) {} 
-            finally { if (loadingOverlay) setTimeout(() => loadingOverlay.classList.add('hidden'), 1000); }
+        // ==========================================
+        // FUNÇÃO DE LIGAR E DESLIGAR (POWER)
+        // ==========================================
+        window.togglePower = async function(checkbox) {
+            const ligar = checkbox.checked;
+            loadingOverlay.classList.remove('hidden');
+
+            if (ligar) {
+                loadingText.innerText = "Ligando e conectando o servidor...";
+                try {
+                    await fetch(`${RENDER_URL}/power?state=on`);
+                    mostrarToast("Sistema Iniciado!");
+                } catch(e) {
+                    mostrarToast("Erro ao ligar. Tente novamente.", "danger");
+                    checkbox.checked = false;
+                }
+            } else {
+                loadingText.innerText = "Desligando o servidor...";
+                try {
+                    await fetch(`${RENDER_URL}/power?state=off`);
+                    mostrarToast("Sistema Desligado.");
+                } catch(e) {
+                    checkbox.checked = true;
+                }
+            }
+            loadingOverlay.classList.add('hidden');
         }
-        acordarServidorRender();
 
-        const LIGAS = [
-            { nome: 'Série A', url: 'https://site.api.espn.com/apis/site/v2/sports/soccer/bra.1/scoreboard' },
-            { nome: 'Copa do Brasil', url: 'https://site.api.espn.com/apis/site/v2/sports/soccer/bra.copa_do_brazil/scoreboard' }
-        ];
+        // LISTENER DE ENERGIA (Sincroniza com Firebase)
+        onValue(ref(db, 'tv/system/state'), (snap) => {
+            const state = snap.val();
+            const dash = document.getElementById('main-dashboard');
+            const toggle = document.getElementById('power-toggle');
+            const btnChange = document.getElementById('btn-abrir-lobby');
+            const headerLabel = document.getElementById('header-target-label');
 
-        let jogosCarregados = [];
-        let apenasCruzeiroFiltro = false;
-        let dataFiltroSelecionada = "TODOS";
+            if (state === 'on') {
+                isSystemOnline = true;
+                toggle.checked = true;
+                dash.classList.remove('system-offline');
+                btnChange.disabled = false;
+                // Re-valida labels se houver alvo configurado
+                if (jogoSelecionadoAtual) headerLabel.innerText = `${jogoSelecionadoAtual.home} x ${jogoSelecionadoAtual.away}`;
+            } else {
+                isSystemOnline = false;
+                toggle.checked = false;
+                dash.classList.add('system-offline');
+                btnChange.disabled = true;
+                headerLabel.innerText = "SISTEMA DESLIGADO (OFF)";
+            }
+        });
 
-        const lobbyOverlay = document.getElementById('lobby-overlay');
-        const gamesList = document.getElementById('games-list');
-        const headerTargetLabel = document.getElementById('header-target-label');
-        const filterSearch = document.getElementById('filter-search');
-        const btnFilterCruzeiro = document.getElementById('btn-filter-cruzeiro');
-        const datePickerBar = document.getElementById('date-picker-bar');
+        const LIGAS = [ { nome: 'Série A', url: 'https://site.api.espn.com/apis/site/v2/sports/soccer/bra.1/scoreboard' }, { nome: 'Copa do Brasil', url: 'https://site.api.espn.com/apis/site/v2/sports/soccer/bra.copa_do_brazil/scoreboard' } ];
+        let jogosCarregados = []; let apenasCruzeiroFiltro = false; let dataFiltroSelecionada = "TODOS";
 
         function gerarCalendarioVisual() {
+            const datePickerBar = document.getElementById('date-picker-bar');
             if (!datePickerBar) return;
             datePickerBar.innerHTML = '';
-            const btnTodos = document.createElement('div');
-            btnTodos.className = `date-card ${dataFiltroSelecionada === 'TODOS' ? 'active' : ''}`;
+            const btnTodos = document.createElement('div'); btnTodos.className = `date-card ${dataFiltroSelecionada === 'TODOS' ? 'active' : ''}`;
             btnTodos.innerHTML = `<div class="day-name">GERAL</div><div class="day-num">TODOS</div>`;
-            btnTodos.onclick = () => { dataFiltroSelecionada = 'TODOS'; renderizarJogos(); gerarCalendarioVisual(); };
-            datePickerBar.appendChild(btnTodos);
+            btnTodos.onclick = () => { dataFiltroSelecionada = 'TODOS'; renderizarJogos(); gerarCalendarioVisual(); }; datePickerBar.appendChild(btnTodos);
 
             const hoje = new Date();
             for (let i = 0; i < 7; i++) {
-                const d = new Date(hoje);
-                d.setDate(hoje.getDate() + i);
-                const dayName = d.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '');
-                const dayNum = d.getDate();
+                const d = new Date(hoje); d.setDate(hoje.getDate() + i);
+                const dayName = d.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', ''); const dayNum = d.getDate();
                 const keyDate = d.toISOString().split('T')[0];
-                const card = document.createElement('div');
-                card.className = `date-card ${dataFiltroSelecionada === keyDate ? 'active' : ''}`;
+                const card = document.createElement('div'); card.className = `date-card ${dataFiltroSelecionada === keyDate ? 'active' : ''}`;
                 card.innerHTML = `<div class="day-name">${dayName}</div><div class="day-num">${dayNum}</div>`;
-                card.onclick = () => { dataFiltroSelecionada = keyDate; renderizarJogos(); gerarCalendarioVisual(); };
-                datePickerBar.appendChild(card);
+                card.onclick = () => { dataFiltroSelecionada = keyDate; renderizarJogos(); gerarCalendarioVisual(); }; datePickerBar.appendChild(card);
             }
         }
 
         window.abrirLobby = async function() {
-            acordarServidorRender();
-            if (lobbyOverlay) lobbyOverlay.classList.remove('hidden');
-            gerarCalendarioVisual();
+            if (!isSystemOnline) return;
+            const lobbyOverlay = document.getElementById('lobby-overlay'); const gamesList = document.getElementById('games-list');
+            if (lobbyOverlay) lobbyOverlay.classList.remove('hidden'); gerarCalendarioVisual();
             if (gamesList) gamesList.innerHTML = '<div style="text-align:center; padding: 20px; color: #888; font-weight:bold;">Carregando jogos...</div>';
             
             try {
-                const requisicoes = LIGAS.map(liga => 
-                    fetch(liga.url)
-                        .then(r => r.json())
-                        .then(d => (d.events || []).map(e => ({ ...e, nomeLiga: liga.nome, urlLiga: liga.url })))
-                        .catch(() => [])
-                );
-
-                const resultados = await Promise.all(requisicoes);
-                jogosCarregados = resultados.flat();
-                jogosCarregados.sort((a, b) => new Date(a.date) - new Date(b.date));
+                const requisicoes = LIGAS.map(liga => fetch(liga.url).then(r => r.json()).then(d => (d.events || []).map(e => ({ ...e, nomeLiga: liga.nome, urlLiga: liga.url }))).catch(() => []));
+                const resultados = await Promise.all(requisicoes); jogosCarregados = resultados.flat(); jogosCarregados.sort((a, b) => new Date(a.date) - new Date(b.date));
                 renderizarJogos();
-            } catch (error) {
-                if (gamesList) gamesList.innerHTML = '<div style="text-align:center; color: var(--danger);">Erro ao carregar lista.</div>';
-            }
+            } catch (error) { if (gamesList) gamesList.innerHTML = '<div style="text-align:center; color: var(--danger);">Erro ao carregar lista.</div>'; }
         }
 
         function renderizarJogos() {
-            if (!gamesList) return;
-            gamesList.innerHTML = '';
-            let contadorVisiveis = 0;
-            const termoBusca = filterSearch ? filterSearch.value.toLowerCase().trim() : '';
+            const gamesList = document.getElementById('games-list'); if (!gamesList) return; gamesList.innerHTML = '';
+            let contadorVisiveis = 0; const filterSearch = document.getElementById('filter-search'); const termoBusca = filterSearch ? filterSearch.value.toLowerCase().trim() : '';
 
             jogosCarregados.forEach(evento => {
-                const estado = evento.status.type.state; 
-                const comp = evento.competitions[0];
-                const timeCasa = comp.competitors.find(c => c.homeAway === 'home').team.name;
-                const timeFora = comp.competitors.find(c => c.homeAway === 'away').team.name;
-                const matchName = `${timeCasa} x ${timeFora}`.toLowerCase();
-                const dataDoJogoObj = new Date(evento.date);
-                const isoDate = dataDoJogoObj.toISOString().split('T')[0];
+                const estado = evento.status.type.state; const comp = evento.competitions[0];
+                const timeCasa = comp.competitors.find(c => c.homeAway === 'home').team.name; const timeFora = comp.competitors.find(c => c.homeAway === 'away').team.name;
+                const matchName = `${timeCasa} x ${timeFora}`.toLowerCase(); const dataDoJogoObj = new Date(evento.date); const isoDate = dataDoJogoObj.toISOString().split('T')[0];
 
-                if (dataFiltroSelecionada !== 'TODOS' && isoDate !== dataFiltroSelecionada) return;
-                if (apenasCruzeiroFiltro && !matchName.includes('cruzeiro')) return;
-                if (termoBusca && !matchName.includes(termoBusca)) return;
-
-                contadorVisiveis++;
-
-                const dataFormatada = dataDoJogoObj.toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit'});
+                if (dataFiltroSelecionada !== 'TODOS' && isoDate !== dataFiltroSelecionada) return; if (apenasCruzeiroFiltro && !matchName.includes('cruzeiro')) return; if (termoBusca && !matchName.includes(termoBusca)) return;
+                contadorVisiveis++; const dataFormatada = dataDoJogoObj.toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit'});
                 let statusLabel = ''; let statusClass = '';
 
                 if(estado === 'pre') { statusLabel = dataDoJogoObj.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'}); statusClass = 'status-pre'; } 
                 else if (estado === 'in') { statusLabel = evento.status.displayClock || "AO VIVO"; statusClass = 'status-in'; } 
                 else if (estado === 'post') { statusLabel = "ENCERRADO"; statusClass = 'status-pre'; }
 
-                const btn = document.createElement('div');
-                btn.className = 'game-btn';
+                const btn = document.createElement('div'); btn.className = 'game-btn';
                 btn.innerHTML = `<div><span class="game-league-tag">${evento.nomeLiga}</span><div class="game-teams">${timeCasa} <span style="color:#cbd5e1; font-weight:normal;">x</span> ${timeFora}</div></div><div class="game-info-col"><span class="game-date">${dataFormatada}</span><span class="game-status ${statusClass}">${statusLabel}</span></div>`;
-                
-                btn.onclick = () => selecionarAlvo(evento);
-                gamesList.appendChild(btn);
+                btn.onclick = () => selecionarAlvo(evento); gamesList.appendChild(btn);
             });
-
-            if (contadorVisiveis === 0) {
-                gamesList.innerHTML = '<div style="text-align:center; padding: 20px; color: #888;">Nenhum jogo localizado.</div>';
-            }
+            if (contadorVisiveis === 0) gamesList.innerHTML = '<div style="text-align:center; padding: 20px; color: #888;">Nenhum jogo localizado.</div>';
         }
 
-        if(filterSearch) filterSearch.addEventListener('input', renderizarJogos);
-        if(btnFilterCruzeiro) btnFilterCruzeiro.addEventListener('click', () => { apenasCruzeiroFiltro = !apenasCruzeiroFiltro; btnFilterCruzeiro.classList.toggle('active', apenasCruzeiroFiltro); renderizarJogos(); });
-        
-        window.fecharLobby = () => { if (lobbyOverlay) lobbyOverlay.classList.add('hidden'); }
+        document.getElementById('filter-search').addEventListener('input', renderizarJogos);
+        document.getElementById('btn-filter-cruzeiro').addEventListener('click', () => { apenasCruzeiroFiltro = !apenasCruzeiroFiltro; document.getElementById('btn-filter-cruzeiro').classList.toggle('active', apenasCruzeiroFiltro); renderizarJogos(); });
+        window.fecharLobby = () => document.getElementById('lobby-overlay').classList.add('hidden');
         window.limparLogs = async function() { await remove(ref(db, 'tv/logs')); mostrarToast("Histórico limpo!"); }
 
         window.selecionarAlvo = async function(evento) {
             fecharLobby();
-            
-            const comp = evento.competitions[0];
-            const timeCasa = comp.competitors.find(c => c.homeAway === 'home').team.name;
-            const timeFora = comp.competitors.find(c => c.homeAway === 'away').team.name;
-            const label = `${timeCasa} x ${timeFora}`;
+            const comp = evento.competitions[0]; const timeCasa = comp.competitors.find(c => c.homeAway === 'home').team.name; const timeFora = comp.competitors.find(c => c.homeAway === 'away').team.name;
+            const label = `${timeCasa} x ${timeFora}`; jogoSelecionadoAtual = { home: timeCasa, away: timeFora, date: evento.date };
 
-            jogoSelecionadoAtual = { home: timeCasa, away: timeFora, date: evento.date };
-
-            await remove(ref(db, 'tv/logs'));
-            await remove(ref(db, 'tv/cartao'));
-            
+            await remove(ref(db, 'tv/logs')); await remove(ref(db, 'tv/cartao'));
             await set(ref(db, 'tv/config'), { tipo: 'id', alvo: evento.id, label: label, urlLiga: evento.urlLiga, home: timeCasa, away: timeFora, gameDate: evento.date, timestamp: Date.now() });
             
-            headerTargetLabel.innerText = label;
-            verificarTempoParaEscalacao();
-            mostrarToast(`Configurado: ${label}`);
+            document.getElementById('header-target-label').innerText = label;
+            verificarTempoParaEscalacao(); mostrarToast(`Configurado: ${label}`);
         }
 
         function verificarTempoParaEscalacao() {
-            const btn = document.getElementById('btn-escalacao');
-            const info = document.getElementById('escalacao-timer-info');
+            const btn = document.getElementById('btn-escalacao'); const info = document.getElementById('escalacao-timer-info');
             if (!btn || !info) return;
+            if (!jogoSelecionadoAtual || !jogoSelecionadoAtual.date) { btn.classList.add('btn-disabled'); info.innerText = "Selecione um jogo no lobby primeiro."; return; }
 
-            if (!jogoSelecionadoAtual || !jogoSelecionadoAtual.date) {
-                btn.classList.add('btn-disabled');
-                info.innerText = "Selecione um jogo no lobby primeiro.";
-                return;
-            }
-
-            const agora = new Date();
-            const dataJogo = new Date(jogoSelecionadoAtual.date);
-            const difMinutos = (dataJogo - agora) / (1000 * 60);
-
-            if (difMinutos <= 20) {
-                btn.classList.remove('btn-disabled');
-                info.innerText = "✅ Liberado para puxar!";
-            } else {
-                btn.classList.add('btn-disabled');
-                info.innerText = `🔒 Aguarde. Libera em ${Math.ceil(difMinutos - 20)} min.`;
-            }
+            const difMinutos = (new Date(jogoSelecionadoAtual.date) - new Date()) / (1000 * 60);
+            if (difMinutos <= 20) { btn.classList.remove('btn-disabled'); info.innerText = "✅ Liberado para puxar!"; } 
+            else { btn.classList.add('btn-disabled'); info.innerText = `🔒 Aguarde. Libera em ${Math.ceil(difMinutos - 20)} min.`; }
         }
 
         window.solicitarEscalacao = async function() {
-            if (!jogoSelecionadoAtual) return;
-
-            mostrarToast("⏳ Puxando da API (1 Crédito)...");
-            document.getElementById('btn-escalacao').classList.add('btn-disabled');
-
+            if (!jogoSelecionadoAtual || !isSystemOnline) return;
+            mostrarToast("⏳ Puxando da API (1 Crédito)..."); document.getElementById('btn-escalacao').classList.add('btn-disabled');
             try {
-                const response = await fetch(`${RENDER_URL}/escalacao?home=${encodeURIComponent(jogoSelecionadoAtual.home)}&away=${encodeURIComponent(jogoSelecionadoAtual.away)}&gameDate=${jogoSelecionadoAtual.date}`);
-                const res = await response.json();
-
-                if (res.sucesso) {
-                    mostrarToast(`🟢 ${res.mensagem}`);
-                    console.log("⚽ LINEUP RECEBIDO:", res.dadosBrutos);
-                } else {
-                    mostrarToast(`🔴 ${res.mensagem}`);
-                }
-            } catch (e) {
-                mostrarToast("❌ Erro ao conectar com o servidor.");
-            } finally {
-                verificarTempoParaEscalacao();
-            }
+                const res = await (await fetch(`${RENDER_URL}/escalacao?home=${encodeURIComponent(jogoSelecionadoAtual.home)}&away=${encodeURIComponent(jogoSelecionadoAtual.away)}&gameDate=${jogoSelecionadoAtual.date}`)).json();
+                if (res.sucesso) { mostrarToast(`🟢 ${res.mensagem}`); console.log("⚽ LINEUP:", res.dadosBrutos); } 
+                else { mostrarToast(`🔴 ${res.mensagem}`); }
+            } catch (e) { mostrarToast("❌ Erro de servidor."); } 
+            finally { verificarTempoParaEscalacao(); }
         }
 
         onValue(ref(db, 'tv/config'), (snap) => {
             const config = snap.val();
-            if(!config) {
-                if(headerTargetLabel) headerTargetLabel.innerText = "Nenhum alvo definido";
-            } else {
-                if(headerTargetLabel) headerTargetLabel.innerText = config.label || "Alvo Ativo";
-                jogoSelecionadoAtual = { home: config.home, away: config.away, date: config.gameDate };
-                verificarTempoParaEscalacao();
+            if(!config) { document.getElementById('header-target-label').innerText = isSystemOnline ? "Nenhum alvo definido" : "SISTEMA DESLIGADO"; } 
+            else { 
+                if (isSystemOnline) document.getElementById('header-target-label').innerText = config.label || "Alvo Ativo"; 
+                jogoSelecionadoAtual = { home: config.home, away: config.away, date: config.gameDate }; verificarTempoParaEscalacao(); 
             }
         });
 
         onValue(ref(db, 'tv/placar'), (snap) => {
-            const data = snap.val();
-            if(!data) return;
+            const data = snap.val(); if(!data) return;
             const home = document.getElementById('mirror-home'); const away = document.getElementById('mirror-away');
-            const scoreHome = document.getElementById('mirror-score-home'); const scoreAway = document.getElementById('mirror-score-away');
-            const time = document.getElementById('mirror-time');
+            const scoreHome = document.getElementById('mirror-score-home'); const scoreAway = document.getElementById('mirror-score-away'); const time = document.getElementById('mirror-time');
 
-            if(data.status === 'off' || data.acao === 'reset') {
-                home.innerText = "OFF"; away.innerText = "OFF"; scoreHome.innerText = "-"; scoreAway.innerText = "-"; time.innerText = "00:00";
-            } else {
+            if(data.status === 'off' || data.acao === 'reset') { home.innerText = "OFF"; away.innerText = "OFF"; scoreHome.innerText = "-"; scoreAway.innerText = "-"; time.innerText = "00:00"; } 
+            else {
                 home.innerText = data.homeAbbr || "CASA"; away.innerText = data.awayAbbr || "FORA"; scoreHome.innerText = data.homeScore ?? 0; scoreAway.innerText = data.awayScore ?? 0;
-                if (data.status === 'post') time.innerText = "FIM";
-                else if (data.status === 'halftime' || data.clock === 'INT') time.innerText = "INT";
-                else if (data.status === 'pre') time.innerText = "PRÉ-JOGO";
-                else time.innerText = data.clock || "00:00";
+                if (data.status === 'post') time.innerText = "FIM"; else if (data.status === 'halftime' || data.clock === 'INT') time.innerText = "INT"; else if (data.status === 'pre') time.innerText = "PRÉ-JOGO"; else time.innerText = data.clock || "00:00";
             }
         });
 
         onValue(ref(db, 'tv/cartao'), (snap) => {
-            const data = snap.val();
-            const cardHome = document.getElementById('card-home'); const cardAway = document.getElementById('card-away');
+            const data = snap.val(); const cardHome = document.getElementById('card-home'); const cardAway = document.getElementById('card-away');
             if (!data) { if(cardHome) cardHome.className = 'card-bar'; if(cardAway) cardAway.className = 'card-bar'; return; }
             const targetBar = (data.teamAbbr === document.getElementById('mirror-home').innerText) ? cardHome : cardAway;
             if(targetBar) targetBar.className = `card-bar ${data.tipo}`;
         });
 
-        const logsArea = document.getElementById('logs-area');
         onValue(query(ref(db, 'tv/logs'), limitToLast(20)), (snapshot) => {
-            if(!logsArea) return;
-            logsArea.innerHTML = '';
-            snapshot.forEach((child) => {
-                const data = child.val();
-                const timeStr = new Date(data.timestamp).toLocaleTimeString('pt-BR');
-                const div = document.createElement('div');
-                div.className = `log-item ${data.tipo}`;
-                div.innerHTML = `<span class="log-time">${timeStr}</span>${data.mensagem}`;
-                logsArea.insertBefore(div, logsArea.firstChild);
-            });
+            const logsArea = document.getElementById('logs-area'); if(!logsArea) return; logsArea.innerHTML = '';
+            snapshot.forEach((child) => { const data = child.val(); const div = document.createElement('div'); div.className = `log-item ${data.tipo}`; div.innerHTML = `<span class="log-time">${new Date(data.timestamp).toLocaleTimeString('pt-BR')}</span>${data.mensagem}`; logsArea.insertBefore(div, logsArea.firstChild); });
         });
 
         const modal = document.getElementById('modal'); const modalBody = document.getElementById('modal-body'); const btnConfirm = document.getElementById('modal-confirm');
